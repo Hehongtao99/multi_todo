@@ -35,6 +35,33 @@ CREATE TABLE IF NOT EXISTS project_users (
     UNIQUE KEY unique_project_user (project_id, user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='项目用户关联表';
 
+-- 创建通知表
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '通知ID',
+    title VARCHAR(200) NOT NULL COMMENT '通知标题',
+    content TEXT NOT NULL COMMENT '通知内容',
+    type VARCHAR(20) NOT NULL DEFAULT 'system' COMMENT '通知类型：system-系统通知，project-项目通知，personal-个人通知',
+    priority VARCHAR(20) NOT NULL DEFAULT 'normal' COMMENT '优先级：low-低，normal-普通，high-高，urgent-紧急',
+    sender_id BIGINT NOT NULL COMMENT '发送者ID（管理员ID）',
+    sender_name VARCHAR(50) NOT NULL COMMENT '发送者姓名',
+    receiver_id BIGINT NULL COMMENT '接收者ID（为空表示全体用户）',
+    project_id BIGINT NULL COMMENT '项目ID（项目通知时使用）',
+    is_read BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否已读',
+    is_pushed BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否已推送',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    expire_time TIMESTAMP NULL COMMENT '过期时间',
+    extra_data JSON NULL COMMENT '额外数据（JSON格式）',
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    INDEX idx_receiver_id (receiver_id),
+    INDEX idx_project_id (project_id),
+    INDEX idx_type (type),
+    INDEX idx_create_time (create_time),
+    INDEX idx_is_read (is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
+
 -- 插入测试数据
 INSERT INTO users (username, password, auth) VALUES 
 ('admin', 'admin123', 'admin'),

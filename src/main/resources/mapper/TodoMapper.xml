@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.todo.mapper.TodoMapper">
+
+    <!-- 根据项目ID获取待办列表 -->
+    <select id="getTodosByProjectId" resultType="com.todo.vo.TodoVo">
+        SELECT 
+            t.id,
+            t.title,
+            t.description,
+            t.status,
+            t.priority,
+            t.project_id as projectId,
+            p.project_name as projectName,
+            t.assignee_id as assigneeId,
+            u1.username as assigneeName,
+            t.creator_id as creatorId,
+            u2.username as creatorName,
+            t.due_date as dueDate,
+            t.created_time as createdTime,
+            t.updated_time as updatedTime
+        FROM todos t
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN users u1 ON t.assignee_id = u1.id
+        LEFT JOIN users u2 ON t.creator_id = u2.id
+        WHERE t.project_id = #{projectId}
+        ORDER BY t.created_time DESC
+    </select>
+
+    <!-- 根据分配人ID获取待办列表 -->
+    <select id="getTodosByAssigneeId" resultType="com.todo.vo.TodoVo">
+        SELECT 
+            t.id,
+            t.title,
+            t.description,
+            t.status,
+            t.priority,
+            t.project_id as projectId,
+            p.project_name as projectName,
+            t.assignee_id as assigneeId,
+            u1.username as assigneeName,
+            t.creator_id as creatorId,
+            u2.username as creatorName,
+            t.due_date as dueDate,
+            t.created_time as createdTime,
+            t.updated_time as updatedTime
+        FROM todos t
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN users u1 ON t.assignee_id = u1.id
+        LEFT JOIN users u2 ON t.creator_id = u2.id
+        WHERE t.assignee_id = #{assigneeId}
+        ORDER BY t.created_time DESC
+    </select>
+
+    <!-- 获取待办详情 -->
+    <select id="getTodoDetail" resultType="com.todo.vo.TodoVo">
+        SELECT 
+            t.id,
+            t.title,
+            t.description,
+            t.status,
+            t.priority,
+            t.project_id as projectId,
+            p.project_name as projectName,
+            t.assignee_id as assigneeId,
+            u1.username as assigneeName,
+            t.creator_id as creatorId,
+            u2.username as creatorName,
+            t.due_date as dueDate,
+            t.created_time as createdTime,
+            t.updated_time as updatedTime
+        FROM todos t
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN users u1 ON t.assignee_id = u1.id
+        LEFT JOIN users u2 ON t.creator_id = u2.id
+        WHERE t.id = #{todoId}
+    </select>
+
+</mapper>

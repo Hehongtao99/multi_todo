@@ -37,4 +37,15 @@ export const assignProject = (data) => {
       'userAuth': userInfo.auth
     }
   })
-} 
+}
+
+// 获取项目详情
+export const getProjectDetail = (projectId) => {
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  return api.get(`/project/${projectId}/detail`, {
+    headers: {
+      'userId': userInfo.id,
+      'userAuth': userInfo.auth
+    }
+  })
+}

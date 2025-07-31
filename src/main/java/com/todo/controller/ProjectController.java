@@ -5,6 +5,7 @@ import com.todo.dto.ProjectAssignDto;
 import com.todo.dto.ProjectCreateDto;
 import com.todo.entity.Project;
 import com.todo.service.ProjectService;
+import com.todo.vo.ProjectDetailVo;
 import com.todo.vo.ProjectVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -80,4 +81,19 @@ public class ProjectController {
             return Result.error(e.getMessage());
         }
     }
-} 
+
+    /**
+     * 获取项目详情
+     */
+    @GetMapping("/{projectId}/detail")
+    public Result<ProjectDetailVo> getProjectDetail(@PathVariable Long projectId,
+                                                   @RequestHeader("userId") Long userId,
+                                                   @RequestHeader("userAuth") String userAuth) {
+        try {
+            ProjectDetailVo projectDetail = projectService.getProjectDetail(projectId);
+            return Result.success(projectDetail);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+}

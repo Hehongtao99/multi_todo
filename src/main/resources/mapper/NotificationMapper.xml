@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.todo.mapper.NotificationMapper">
+
+    <!-- 通知结果映射 -->
+    <resultMap id="NotificationVoMap" type="com.todo.vo.NotificationVo">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="type" property="type"/>
+        <result column="priority" property="priority"/>
+        <result column="sender_id" property="senderId"/>
+        <result column="sender_name" property="senderName"/>
+        <result column="receiver_id" property="receiverId"/>
+        <result column="project_id" property="projectId"/>
+        <result column="project_name" property="projectName"/>
+        <result column="is_read" property="isRead"/>
+        <result column="create_time" property="createTime"/>
+        <result column="expire_time" property="expireTime"/>
+        <result column="extra_data" property="extraData"/>
+        <result column="is_expired" property="isExpired"/>
+    </resultMap>
+
+    <!-- 根据用户ID获取通知列表 -->
+    <select id="getNotificationsByUserId" parameterType="long" resultMap="NotificationVoMap">
+        SELECT 
+            n.id,
+            n.title,
+            n.content,
+            n.type,
+            n.priority,
+            n.sender_id,
+            n.sender_name,
+            n.receiver_id,
+            n.project_id,
+            p.name as project_name,
+            n.is_read,
+            n.create_time,
+            n.expire_time,
+            n.extra_data,
+            CASE 
+                WHEN n.expire_time IS NOT NULL AND n.expire_time &lt; NOW() THEN true 
+                ELSE false 
+            END as is_expired
+        FROM notifications n
+        LEFT JOIN projects p ON n.project_id = p.id
+        WHERE (n.receiver_id = #{userId} OR n.receiver_id IS NULL)
+          AND (n.expire_time IS NULL OR n.expire_time &gt; NOW())
+        ORDER BY 
+            CASE n.priority 
+                WHEN 'urgent' THEN 1 
+                WHEN 'high' THEN 2 
+                WHEN 'normal' THEN 3 
+                WHEN 'low' THEN 4 
+                ELSE 5 
+            END,
+            n.create_time DESC
+    </select>
+
+    <!-- 根据项目ID获取项目通知 -->
+    <select id="getNotificationsByProjectId" parameterType="long" resultMap="NotificationVoMap">
+        SELECT 
+            n.id,
+            n.title,
+            n.content,
+            n.type,
+            n.priority,
+            n.sender_id,
+            n.sender_name,
+            n.receiver_id,
+            n.project_id,
+            p.name as project_name,
+            n.is_read,
+            n.create_time,
+            n.expire_time,
+            n.extra_data,
+            CASE 
+                WHEN n.expire_time IS NOT NULL AND n.expire_time &lt; NOW() THEN true 
+                ELSE false 
+            END as is_expired
+        FROM notifications n
+        LEFT JOIN projects p ON n.project_id = p.id
+        WHERE n.project_id = #{projectId}
+          AND (n.expire_time IS NULL OR n.expire_time &gt; NOW())
+        ORDER BY 
+            CASE n.priority 
+                WHEN 'urgent' THEN 1 
+                WHEN 'high' THEN 2 
+                WHEN 'normal' THEN 3 
+                WHEN 'low' THEN 4 
+                ELSE 5 
+            END,
+            n.create_time DESC
+    </select>
+
+    <!-- 获取系统通知 -->
+    <select id="getSystemNotifications" resultMap="NotificationVoMap">
+        SELECT 
+            n.id,
+            n.title,
+            n.content,
+            n.type,
+            n.priority,
+            n.sender_id,
+            n.sender_name,
+            n.receiver_id,
+            n.project_id,
+            NULL as project_name,
+            n.is_read,
+            n.create_time,
+            n.expire_time,
+            n.extra_data,
+            CASE 
+                WHEN n.expire_time IS NOT NULL AND n.expire_time &lt; NOW() THEN true 
+                ELSE false 
+            END as is_expired
+        FROM notifications n
+        WHERE n.type = 'system'
+          AND (n.expire_time IS NULL OR n.expire_time &gt; NOW())
+        ORDER BY 
+            CASE n.priority 
+                WHEN 'urgent' THEN 1 
+                WHEN 'high' THEN 2 
+                WHEN 'normal' THEN 3 
+                WHEN 'low' THEN 4 
+                ELSE 5 
+            END,
+            n.create_time DESC
+    </select>
+
+    <!-- 标记通知为已读 -->
+    <update id="markAsRead">
+        UPDATE notifications 
+        SET is_read = true, update_time = NOW()
+        WHERE id = #{notificationId}
+          AND (receiver_id = #{userId} OR receiver_id IS NULL)
+    </update>
+
+    <!-- 批量标记通知为已读 -->
+    <update id="markAllAsRead">
+        UPDATE notifications 
+        SET is_read = true, update_time = NOW()
+        WHERE (receiver_id = #{userId} OR receiver_id IS NULL)
+          AND is_read = false
+    </update>
+
+    <!-- 获取未读通知数量 -->
+    <select id="getUnreadCount" parameterType="long" resultType="int">
+        SELECT COUNT(*) 
+        FROM notifications 
+        WHERE (receiver_id = #{userId} OR receiver_id IS NULL)
+          AND is_read = false
+          AND (expire_time IS NULL OR expire_time &gt; NOW())
+    </select>
+
+</mapper> 

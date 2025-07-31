@@ -73,10 +73,18 @@
             {{ formatDate(scope.row.createdTime) }}
           </template>
         </el-table-column>
-                 <el-table-column v-if="isAdmin" label="操作" width="120">
+                 <el-table-column label="操作" width="200">
            <template #default="scope">
-             <el-button 
-               type="primary" 
+             <el-button
+               type="info"
+               size="small"
+               @click="handleViewDetail(scope.row)"
+             >
+               详情
+             </el-button>
+             <el-button
+               v-if="isAdmin"
+               type="primary"
                size="small"
                @click="handleAssignUsers(scope.row)"
              >
@@ -190,6 +198,7 @@
 
 <script>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getProjectList, createProject, assignProject } from '../api/project'
 import { getUserList } from '../api/user'
@@ -197,6 +206,7 @@ import { getUserList } from '../api/user'
 export default {
   name: 'ProjectManagement',
   setup() {
+    const router = useRouter()
     const loading = ref(false)
     const projectList = ref([])
     const userList = ref([])
@@ -316,6 +326,11 @@ export default {
       }
     }
 
+    // 查看项目详情
+    const handleViewDetail = (project) => {
+      router.push(`/dashboard/projects/${project.id}`)
+    }
+
     // 格式化日期
     const formatDate = (dateString) => {
       if (!dateString) return '-'
@@ -343,6 +358,7 @@ export default {
       handleCreateProject,
       handleAssignUsers,
       handleConfirmAssign,
+      handleViewDetail,
       formatDate
     }
   }

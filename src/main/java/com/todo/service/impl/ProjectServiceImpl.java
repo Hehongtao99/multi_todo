@@ -7,8 +7,11 @@ import com.todo.entity.Project;
 import com.todo.entity.ProjectUser;
 import com.todo.mapper.ProjectMapper;
 import com.todo.mapper.ProjectUserMapper;
+import com.todo.mapper.TodoMapper;
 import com.todo.service.ProjectService;
+import com.todo.vo.ProjectDetailVo;
 import com.todo.vo.ProjectVo;
+import com.todo.vo.TodoVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,12 +20,15 @@ import java.util.List;
 
 @Service
 public class ProjectServiceImpl implements ProjectService {
-    
+
     @Autowired
     private ProjectMapper projectMapper;
-    
+
     @Autowired
     private ProjectUserMapper projectUserMapper;
+
+    @Autowired
+    private TodoMapper todoMapper;
     
     @Override
     public Project createProject(ProjectCreateDto projectCreateDto, Long creatorId) {
@@ -70,4 +76,23 @@ public class ProjectServiceImpl implements ProjectService {
         
         return project;
     }
-} 
+
+    @Override
+    public ProjectDetailVo getProjectDetail(Long projectId) {
+        // 获取项目基本信息
+        ProjectDetailVo projectDetail = projectMapper.selectProjectDetailById(projectId);
+        if (projectDetail == null) {
+            throw new RuntimeException("项目不存在");
+        }
+
+        // 获取分配的用户列表
+        List<ProjectDetailVo.AssignedUser> assignedUsers = projectMapper.selectAssignedUsersByProjectId(projectId);
+        projectDetail.setAssignedUsers(assignedUsers);
+
+        // 获取项目的待办事项列表
+        List<TodoVo> todos = todoMapper.getTodosByProjectId(projectId);
+        projectDetail.setTodos(todos);
+
+        return projectDetail;
+    }
+}

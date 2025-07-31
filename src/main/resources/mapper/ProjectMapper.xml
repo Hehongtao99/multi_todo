@@ -45,6 +45,33 @@
         ORDER BY p.created_time DESC, pu.assigned_time ASC
     </select>
 
+    <!-- 获取项目详情 -->
+    <select id="selectProjectDetailById" resultType="com.todo.vo.ProjectDetailVo">
+        SELECT
+            p.id,
+            p.project_name as projectName,
+            p.project_description as projectDescription,
+            p.creator_id as creatorId,
+            creator.username as creatorName,
+            p.created_time as createdTime,
+            p.updated_time as updatedTime
+        FROM projects p
+        LEFT JOIN users creator ON p.creator_id = creator.id
+        WHERE p.id = #{projectId}
+    </select>
+
+    <!-- 获取项目分配的用户列表 -->
+    <select id="selectAssignedUsersByProjectId" resultType="com.todo.vo.ProjectDetailVo$AssignedUser">
+        SELECT
+            pu.user_id as userId,
+            u.username as username,
+            pu.assigned_time as assignedTime
+        FROM project_users pu
+        LEFT JOIN users u ON pu.user_id = u.id
+        WHERE pu.project_id = #{projectId}
+        ORDER BY pu.assigned_time ASC
+    </select>
+
     <!-- 结果映射 -->
     <resultMap id="ProjectVoMap" type="com.todo.vo.ProjectVo">
         <id property="id" column="id"/>
@@ -61,4 +88,4 @@
         </collection>
     </resultMap>
 
-</mapper> 
+</mapper>

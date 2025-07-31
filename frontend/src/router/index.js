@@ -4,6 +4,7 @@ import Register from '../views/Register.vue'
 import Dashboard from '../views/Dashboard.vue'
 import UserManagement from '../views/UserManagement.vue'
 import ProjectManagement from '../views/ProjectManagement.vue'
+import ProjectDetail from '../views/ProjectDetail.vue'
 
 const routes = [
   {
@@ -34,6 +35,11 @@ const routes = [
         path: 'projects',
         name: 'ProjectManagement',
         component: ProjectManagement
+      },
+      {
+        path: 'projects/:id',
+        name: 'ProjectDetail',
+        component: ProjectDetail
       }
     ]
   }

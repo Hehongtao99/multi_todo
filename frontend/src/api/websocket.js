@@ -1,5 +1,6 @@
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
+import notificationUtil from '../utils/notification.js'
 
 class WebSocketService {
   constructor() {
@@ -229,6 +230,11 @@ class WebSocketService {
   handleMessage(channel, message) {
     console.log(`收到${channel}消息:`, message)
     
+    // 处理通知消息
+    if (message.type === 'NOTIFICATION') {
+      this.handleNotificationMessage(message.content)
+    }
+    
     // 调用注册的消息处理器
     const handlers = this.messageHandlers.get(message.type) || []
     handlers.forEach(handler => {
@@ -248,6 +254,43 @@ class WebSocketService {
         console.error('全局消息处理器执行错误:', error)
       }
     })
+  }
+
+  /**
+   * 处理通知消息
+   */
+  async handleNotificationMessage(notification) {
+    console.log('收到通知:', notification)
+    
+    try {
+      // 根据通知类型显示不同的Windows通知
+      switch (notification.type) {
+        case 'system':
+          await notificationUtil.showSystemNotification(notification)
+          break
+        case 'project':
+          await notificationUtil.showProjectNotification(notification)
+          break
+        case 'personal':
+          await notificationUtil.showPersonalNotification(notification)
+          break
+        default:
+          await notificationUtil.showNotification({
+            title: notification.title,
+            message: notification.content,
+            priority: notification.priority
+          })
+      }
+
+      // 触发通知接收事件
+      const event = new CustomEvent('notificationReceived', {
+        detail: notification
+      })
+      window.dispatchEvent(event)
+
+    } catch (error) {
+      console.error('处理通知消息失败:', error)
+    }
   }
 
   /**
