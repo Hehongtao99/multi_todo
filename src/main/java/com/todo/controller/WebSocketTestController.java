@@ -1,8 +1,9 @@
 package com.todo.controller;
 
 import com.todo.common.Result;
-import com.todo.dto.WebSocketMessageDto;
+import com.todo.dto.WebSocketTestDto;
 import com.todo.service.WebSocketService;
+import com.todo.vo.OperationResultVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,39 +22,36 @@ public class WebSocketTestController {
     /**
      * 测试向项目发送消息
      */
-    @PostMapping("/test/project/{projectId}")
-    public Result<String> testProjectMessage(@PathVariable Long projectId, 
-                                           @RequestBody WebSocketMessageDto message) {
-        message.setProjectId(projectId);
-        webSocketService.sendToProject(projectId, message);
-        return Result.success("消息发送成功");
+    @PostMapping("/test/project")
+    public Result<OperationResultVo> testProjectMessage(@RequestBody WebSocketTestDto testDto) {
+        OperationResultVo result = webSocketService.testProjectMessage(testDto);
+        return Result.success(result);
     }
     
     /**
      * 测试向用户发送消息
      */
-    @PostMapping("/test/user/{userId}")
-    public Result<String> testUserMessage(@PathVariable Long userId, 
-                                        @RequestBody WebSocketMessageDto message) {
-        message.setReceiverId(userId);
-        webSocketService.sendToUser(userId, message);
-        return Result.success("消息发送成功");
+    @PostMapping("/test/user")
+    public Result<OperationResultVo> testUserMessage(@RequestBody WebSocketTestDto testDto) {
+        OperationResultVo result = webSocketService.testUserMessage(testDto);
+        return Result.success(result);
     }
     
     /**
      * 测试广播消息
      */
     @PostMapping("/test/broadcast")
-    public Result<String> testBroadcast(@RequestBody WebSocketMessageDto message) {
-        webSocketService.broadcast(message);
-        return Result.success("广播消息发送成功");
+    public Result<OperationResultVo> testBroadcast(@RequestBody WebSocketTestDto testDto) {
+        OperationResultVo result = webSocketService.testBroadcast(testDto);
+        return Result.success(result);
     }
     
     /**
      * 获取WebSocket连接状态
      */
-    @GetMapping("/status")
-    public Result<String> getWebSocketStatus() {
-        return Result.success("WebSocket服务正常运行");
+    @PostMapping("/status")
+    public Result<OperationResultVo> getWebSocketStatus() {
+        OperationResultVo result = webSocketService.getWebSocketStatus();
+        return Result.success(result);
     }
 } 

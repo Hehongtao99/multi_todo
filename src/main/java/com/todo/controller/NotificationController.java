@@ -1,10 +1,14 @@
 package com.todo.controller;
 
 import com.todo.common.Result;
-import com.todo.dto.NotificationCreateDto;
-import com.todo.entity.Notification;
+import com.todo.dto.NotificationDeleteDto;
+import com.todo.dto.NotificationMarkReadDto;
+import com.todo.dto.NotificationQueryDto;
+import com.todo.dto.NotificationSendDto;
 import com.todo.service.NotificationService;
+import com.todo.vo.NotificationCountVo;
 import com.todo.vo.NotificationVo;
+import com.todo.vo.OperationResultVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,110 +26,74 @@ public class NotificationController {
     private NotificationService notificationService;
     
     /**
-     * 管理员发送系统通知
+     * 发送通知（统一接口）
      */
-    @PostMapping("/system")
-    public Result<Notification> sendSystemNotification(@RequestBody NotificationCreateDto dto,
-                                                      @RequestParam Long adminId,
-                                                      @RequestParam String adminName) {
-        notificationService.sendSystemNotification(dto, adminId, adminName);
-        return Result.success("系统通知发送成功");
-    }
-    
-    /**
-     * 管理员发送项目通知
-     */
-    @PostMapping("/project")
-    public Result<Notification> sendProjectNotification(@RequestBody NotificationCreateDto dto,
-                                                       @RequestParam Long adminId,
-                                                       @RequestParam String adminName) {
-        notificationService.sendProjectNotification(dto, adminId, adminName);
-        return Result.success("项目通知发送成功");
-    }
-    
-    /**
-     * 管理员发送个人通知
-     */
-    @PostMapping("/personal")
-    public Result<Notification> sendPersonalNotification(@RequestBody NotificationCreateDto dto,
-                                                        @RequestParam Long adminId,
-                                                        @RequestParam String adminName) {
-        notificationService.sendPersonalNotification(dto, adminId, adminName);
-        return Result.success("个人通知发送成功");
+    @PostMapping("/send")
+    public Result<OperationResultVo> sendNotification(@RequestBody NotificationSendDto sendDto) {
+        OperationResultVo result = notificationService.sendNotification(sendDto);
+        return Result.success(result);
     }
     
     /**
      * 获取用户通知列表
      */
-    @GetMapping("/user/{userId}")
-    public Result<List<NotificationVo>> getUserNotifications(@PathVariable Long userId) {
-        List<NotificationVo> notifications = notificationService.getNotificationsByUserId(userId);
-        return Result.success(notifications);
+    @PostMapping("/user")
+    public Result<List<NotificationVo>> getUserNotifications(@RequestBody NotificationQueryDto queryDto) {
+        List<NotificationVo> result = notificationService.getUserNotifications(queryDto);
+        return Result.success(result);
     }
     
     /**
      * 获取项目通知列表
      */
-    @GetMapping("/project/{projectId}")
-    public Result<List<NotificationVo>> getProjectNotifications(@PathVariable Long projectId) {
-        List<NotificationVo> notifications = notificationService.getNotificationsByProjectId(projectId);
-        return Result.success(notifications);
+    @PostMapping("/project")
+    public Result<List<NotificationVo>> getProjectNotifications(@RequestBody NotificationQueryDto queryDto) {
+        List<NotificationVo> result = notificationService.getProjectNotifications(queryDto);
+        return Result.success(result);
     }
     
     /**
      * 获取系统通知列表
      */
-    @GetMapping("/system")
+    @PostMapping("/system")
     public Result<List<NotificationVo>> getSystemNotifications() {
-        List<NotificationVo> notifications = notificationService.getSystemNotifications();
-        return Result.success(notifications);
+        List<NotificationVo> result = notificationService.getSystemNotifications();
+        return Result.success(result);
     }
     
     /**
      * 标记通知为已读
      */
-    @PutMapping("/{notificationId}/read")
-    public Result<String> markAsRead(@PathVariable Long notificationId, @RequestParam Long userId) {
-        boolean success = notificationService.markAsRead(notificationId, userId);
-        if (success) {
-            return Result.success("标记已读成功");
-        } else {
-            return Result.error("标记已读失败");
-        }
+    @PostMapping("/mark-read")
+    public Result<OperationResultVo> markAsRead(@RequestBody NotificationMarkReadDto markReadDto) {
+        OperationResultVo result = notificationService.markAsRead(markReadDto);
+        return Result.success(result);
     }
     
     /**
      * 批量标记所有通知为已读
      */
-    @PutMapping("/read-all")
-    public Result<String> markAllAsRead(@RequestParam Long userId) {
-        boolean success = notificationService.markAllAsRead(userId);
-        if (success) {
-            return Result.success("全部标记已读成功");
-        } else {
-            return Result.error("全部标记已读失败");
-        }
+    @PostMapping("/mark-all-read")
+    public Result<OperationResultVo> markAllAsRead(@RequestBody NotificationQueryDto queryDto) {
+        OperationResultVo result = notificationService.markAllAsRead(queryDto);
+        return Result.success(result);
     }
     
     /**
      * 获取未读通知数量
      */
-    @GetMapping("/unread-count/{userId}")
-    public Result<Integer> getUnreadCount(@PathVariable Long userId) {
-        int count = notificationService.getUnreadCount(userId);
-        return Result.success(count);
+    @PostMapping("/unread-count")
+    public Result<NotificationCountVo> getUnreadCount(@RequestBody NotificationQueryDto queryDto) {
+        NotificationCountVo result = notificationService.getUnreadCount(queryDto);
+        return Result.success(result);
     }
     
     /**
      * 删除通知
      */
-    @DeleteMapping("/{notificationId}")
-    public Result<String> deleteNotification(@PathVariable Long notificationId) {
-        boolean success = notificationService.deleteNotification(notificationId);
-        if (success) {
-            return Result.success("删除通知成功");
-        } else {
-            return Result.error("删除通知失败");
-        }
+    @PostMapping("/delete")
+    public Result<OperationResultVo> deleteNotification(@RequestBody NotificationDeleteDto deleteDto) {
+        OperationResultVo result = notificationService.deleteNotification(deleteDto);
+        return Result.success(result);
     }
 } 

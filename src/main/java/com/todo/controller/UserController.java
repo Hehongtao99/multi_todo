@@ -3,8 +3,9 @@ package com.todo.controller;
 import com.todo.common.Result;
 import com.todo.dto.LoginDto;
 import com.todo.dto.RegisterDto;
-import com.todo.entity.User;
+import com.todo.dto.UserListQueryDto;
 import com.todo.service.UserService;
+import com.todo.vo.UserVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,44 +23,26 @@ public class UserController {
      * 用户注册
      */
     @PostMapping("/register")
-    public Result<User> register(@RequestBody RegisterDto registerDto) {
-        try {
-            User user = userService.register(registerDto);
-            return Result.success("注册成功", user);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+    public Result<UserVo> register(@RequestBody RegisterDto registerDto) {
+        UserVo result = userService.register(registerDto);
+        return Result.success("注册成功", result);
     }
     
     /**
      * 用户登录
      */
     @PostMapping("/login")
-    public Result<User> login(@RequestBody LoginDto loginDto) {
-        try {
-            User user = userService.login(loginDto);
-            return Result.success("登录成功", user);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+    public Result<UserVo> login(@RequestBody LoginDto loginDto) {
+        UserVo result = userService.login(loginDto);
+        return Result.success("登录成功", result);
     }
     
     /**
      * 获取所有普通用户列表（仅管理员）
      */
-    @GetMapping("/list")
-    public Result<List<User>> getUserList(@RequestHeader("userId") Long userId, 
-                                         @RequestHeader("userAuth") String userAuth) {
-        try {
-            // 权限验证：只有管理员可以查看用户列表
-            if (!"admin".equals(userAuth)) {
-                return Result.error(403, "权限不足");
-            }
-            
-            List<User> userList = userService.getUserList();
-            return Result.success(userList);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+    @PostMapping("/list")
+    public Result<List<UserVo>> getUserList(@RequestBody UserListQueryDto queryDto) {
+        List<UserVo> result = userService.getUserList(queryDto);
+        return Result.success(result);
     }
 } 

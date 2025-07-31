@@ -10,19 +10,17 @@ import java.time.LocalDateTime;
 @Data
 @TableName("projects")
 public class Project {
-    
+
     @TableId(type = IdType.AUTO)
     private Long id;
-    
-    private String projectName;
-    
-    private String projectDescription;
-    
-    private Long creatorId;
-    
 
-    
+    private String projectName;
+
+    private String projectDescription;
+
+    private Long creatorId;
+
     private LocalDateTime createdTime;
-    
+
     private LocalDateTime updatedTime;
-} 
+}
