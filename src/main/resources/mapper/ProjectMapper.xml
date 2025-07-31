@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.todo.mapper.ProjectMapper">
+
+    <!-- 获取所有项目（带分配用户信息） -->
+    <select id="selectAllProjectsWithUserNames" resultMap="ProjectVoMap">
+        SELECT 
+            p.id,
+            p.project_name,
+            p.project_description,
+            p.creator_id,
+            creator.username as creator_name,
+            p.created_time,
+            p.updated_time,
+            pu.user_id,
+            u.username as user_name,
+            pu.assigned_time
+        FROM projects p
+        LEFT JOIN users creator ON p.creator_id = creator.id
+        LEFT JOIN project_users pu ON p.id = pu.project_id
+        LEFT JOIN users u ON pu.user_id = u.id
+        ORDER BY p.created_time DESC, pu.assigned_time ASC
+    </select>
+
+    <!-- 根据分配人ID获取项目（带分配用户信息） -->
+    <select id="selectProjectsByAssigneeWithUserNames" resultMap="ProjectVoMap">
+        SELECT DISTINCT
+            p.id,
+            p.project_name,
+            p.project_description,
+            p.creator_id,
+            creator.username as creator_name,
+            p.created_time,
+            p.updated_time,
+            pu.user_id,
+            u.username as user_name,
+            pu.assigned_time
+        FROM projects p
+        LEFT JOIN users creator ON p.creator_id = creator.id
+        LEFT JOIN project_users pu ON p.id = pu.project_id
+        LEFT JOIN users u ON pu.user_id = u.id
+        WHERE pu.user_id = #{assigneeId}
+        ORDER BY p.created_time DESC, pu.assigned_time ASC
+    </select>
+
+    <!-- 结果映射 -->
+    <resultMap id="ProjectVoMap" type="com.todo.vo.ProjectVo">
+        <id property="id" column="id"/>
+        <result property="projectName" column="project_name"/>
+        <result property="projectDescription" column="project_description"/>
+        <result property="creatorId" column="creator_id"/>
+        <result property="creatorName" column="creator_name"/>
+        <result property="createdTime" column="created_time"/>
+        <result property="updatedTime" column="updated_time"/>
+        <collection property="assignedUsers" ofType="com.todo.vo.ProjectVo$ProjectUserVo">
+            <result property="userId" column="user_id"/>
+            <result property="username" column="user_name"/>
+            <result property="assignedTime" column="assigned_time"/>
+        </collection>
+    </resultMap>
+
+</mapper> 
