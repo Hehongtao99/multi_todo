@@ -1,0 +1,319 @@
+import { Client } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
+
+class WebSocketService {
+  constructor() {
+    this.client = null
+    this.connected = false
+    this.currentUser = null
+    this.currentProject = null
+    this.messageHandlers = new Map()
+    this.reconnectAttempts = 0
+    this.maxReconnectAttempts = 5
+  }
+
+  /**
+   * 连接WebSocket
+   */
+  connect(user) {
+    return new Promise((resolve, reject) => {
+      this.currentUser = user
+      
+      this.client = new Client({
+        webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+        connectHeaders: {},
+        debug: (str) => {
+          console.log('WebSocket调试:', str)
+        },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        onConnect: (frame) => {
+          console.log('WebSocket连接成功:', frame)
+          this.connected = true
+          this.reconnectAttempts = 0
+          this.subscribeToTopics()
+          resolve(frame)
+        },
+        onStompError: (frame) => {
+          console.error('WebSocket STOMP错误:', frame.headers['message'])
+          console.error('详细信息:', frame.body)
+          this.connected = false
+          reject(frame)
+        },
+        onWebSocketError: (error) => {
+          console.error('WebSocket连接错误:', error)
+          this.connected = false
+          reject(error)
+        },
+        onDisconnect: () => {
+          console.log('WebSocket连接断开')
+          this.connected = false
+          this.attemptReconnect()
+        }
+      })
+
+      this.client.activate()
+    })
+  }
+
+  /**
+   * 断开WebSocket连接
+   */
+  disconnect() {
+    if (this.client && this.connected) {
+      // 离开当前项目
+      if (this.currentProject) {
+        this.leaveProject()
+      }
+      
+      this.client.deactivate()
+      this.connected = false
+      this.currentUser = null
+      this.currentProject = null
+    }
+  }
+
+  /**
+   * 订阅主题
+   */
+  subscribeToTopics() {
+    if (!this.client || !this.connected) return
+
+    // 订阅全局消息
+    this.client.subscribe('/topic/global', (message) => {
+      this.handleMessage('global', JSON.parse(message.body))
+    })
+
+    // 订阅个人消息
+    if (this.currentUser && this.currentUser.id) {
+      this.client.subscribe(`/queue/user/${this.currentUser.id}`, (message) => {
+        this.handleMessage('personal', JSON.parse(message.body))
+      })
+    }
+  }
+
+  /**
+   * 加入项目
+   */
+  joinProject(projectId) {
+    if (!this.client || !this.connected || !this.currentUser) {
+      console.error('WebSocket未连接或用户信息缺失')
+      return
+    }
+
+    this.currentProject = projectId
+
+    // 订阅项目消息
+    this.client.subscribe(`/topic/project/${projectId}`, (message) => {
+      this.handleMessage('project', JSON.parse(message.body))
+    })
+
+    // 发送加入项目消息
+    const message = {
+      type: 'JOIN_PROJECT',
+      content: '加入项目',
+      senderId: this.currentUser.id,
+      senderName: this.currentUser.username,
+      projectId: projectId,
+      timestamp: Date.now()
+    }
+
+    this.client.publish({
+      destination: '/app/project.join',
+      body: JSON.stringify(message)
+    })
+  }
+
+  /**
+   * 离开项目
+   */
+  leaveProject() {
+    if (!this.client || !this.connected || !this.currentUser || !this.currentProject) {
+      return
+    }
+
+    const message = {
+      type: 'LEAVE_PROJECT',
+      content: '离开项目',
+      senderId: this.currentUser.id,
+      senderName: this.currentUser.username,
+      projectId: this.currentProject,
+      timestamp: Date.now()
+    }
+
+    this.client.publish({
+      destination: '/app/project.leave',
+      body: JSON.stringify(message)
+    })
+
+    this.currentProject = null
+  }
+
+  /**
+   * 发送项目更新消息
+   */
+  sendProjectUpdate(updateData) {
+    if (!this.client || !this.connected || !this.currentUser || !this.currentProject) {
+      console.error('WebSocket未连接或项目信息缺失')
+      return
+    }
+
+    const message = {
+      type: 'PROJECT_UPDATE',
+      content: updateData,
+      senderId: this.currentUser.id,
+      senderName: this.currentUser.username,
+      projectId: this.currentProject,
+      timestamp: Date.now()
+    }
+
+    this.client.publish({
+      destination: '/app/project.update',
+      body: JSON.stringify(message)
+    })
+  }
+
+  /**
+   * 发送聊天消息
+   */
+  sendChatMessage(content, receiverId = null) {
+    if (!this.client || !this.connected || !this.currentUser) {
+      console.error('WebSocket未连接或用户信息缺失')
+      return
+    }
+
+    const message = {
+      type: 'CHAT_MESSAGE',
+      content: content,
+      senderId: this.currentUser.id,
+      senderName: this.currentUser.username,
+      projectId: this.currentProject,
+      receiverId: receiverId,
+      timestamp: Date.now()
+    }
+
+    this.client.publish({
+      destination: '/app/chat.message',
+      body: JSON.stringify(message)
+    })
+  }
+
+  /**
+   * 发送用户状态更新
+   */
+  sendUserStatus(status) {
+    if (!this.client || !this.connected || !this.currentUser) {
+      console.error('WebSocket未连接或用户信息缺失')
+      return
+    }
+
+    const message = {
+      type: 'USER_STATUS',
+      content: { status: status },
+      senderId: this.currentUser.id,
+      senderName: this.currentUser.username,
+      projectId: this.currentProject,
+      timestamp: Date.now()
+    }
+
+    this.client.publish({
+      destination: '/app/user.status',
+      body: JSON.stringify(message)
+    })
+  }
+
+  /**
+   * 处理接收到的消息
+   */
+  handleMessage(channel, message) {
+    console.log(`收到${channel}消息:`, message)
+    
+    // 调用注册的消息处理器
+    const handlers = this.messageHandlers.get(message.type) || []
+    handlers.forEach(handler => {
+      try {
+        handler(message, channel)
+      } catch (error) {
+        console.error('消息处理器执行错误:', error)
+      }
+    })
+
+    // 调用通用消息处理器
+    const globalHandlers = this.messageHandlers.get('*') || []
+    globalHandlers.forEach(handler => {
+      try {
+        handler(message, channel)
+      } catch (error) {
+        console.error('全局消息处理器执行错误:', error)
+      }
+    })
+  }
+
+  /**
+   * 注册消息处理器
+   */
+  onMessage(messageType, handler) {
+    if (!this.messageHandlers.has(messageType)) {
+      this.messageHandlers.set(messageType, [])
+    }
+    this.messageHandlers.get(messageType).push(handler)
+  }
+
+  /**
+   * 移除消息处理器
+   */
+  offMessage(messageType, handler) {
+    const handlers = this.messageHandlers.get(messageType)
+    if (handlers) {
+      const index = handlers.indexOf(handler)
+      if (index > -1) {
+        handlers.splice(index, 1)
+      }
+    }
+  }
+
+  /**
+   * 尝试重连
+   */
+  attemptReconnect() {
+    if (this.reconnectAttempts < this.maxReconnectAttempts && this.currentUser) {
+      this.reconnectAttempts++
+      console.log(`尝试重连WebSocket，第${this.reconnectAttempts}次`)
+      
+      setTimeout(() => {
+        this.connect(this.currentUser).catch(error => {
+          console.error('重连失败:', error)
+        })
+      }, 3000 * this.reconnectAttempts)
+    } else {
+      console.error('WebSocket重连次数已达上限')
+    }
+  }
+
+  /**
+   * 检查连接状态
+   */
+  isConnected() {
+    return this.connected && this.client && this.client.connected
+  }
+
+  /**
+   * 获取当前用户
+   */
+  getCurrentUser() {
+    return this.currentUser
+  }
+
+  /**
+   * 获取当前项目
+   */
+  getCurrentProject() {
+    return this.currentProject
+  }
+}
+
+// 创建全局WebSocket服务实例
+const webSocketService = new WebSocketService()
+
+export default webSocketService 

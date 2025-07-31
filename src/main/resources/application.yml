@@ -8,6 +8,10 @@ spring:
     username: root
     password: 123456
   
+  # WebSocket配置
+  websocket:
+    allowed-origins: "*"
+    
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
