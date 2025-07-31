@@ -1,8 +1,14 @@
 package com.todo.service;
 
+import com.todo.dto.NotificationSendDto;
+import com.todo.dto.NotificationQueryDto;
+import com.todo.dto.NotificationMarkReadDto;
+import com.todo.dto.NotificationDeleteDto;
 import com.todo.dto.NotificationCreateDto;
 import com.todo.entity.Notification;
 import com.todo.vo.NotificationVo;
+import com.todo.vo.NotificationCountVo;
+import com.todo.vo.OperationResultVo;
 
 import java.util.List;
 
@@ -12,57 +18,37 @@ import java.util.List;
 public interface NotificationService {
     
     /**
-     * 创建通知
+     * 发送通知
      */
-    Notification createNotification(NotificationCreateDto dto, Long senderId, String senderName);
+    OperationResultVo sendNotification(NotificationSendDto sendDto);
     
     /**
-     * 发送系统通知给所有用户
+     * 获取通知列表
      */
-    void sendSystemNotification(NotificationCreateDto dto, Long senderId, String senderName);
-    
-    /**
-     * 发送项目通知
-     */
-    void sendProjectNotification(NotificationCreateDto dto, Long senderId, String senderName);
-    
-    /**
-     * 发送个人通知
-     */
-    void sendPersonalNotification(NotificationCreateDto dto, Long senderId, String senderName);
-    
-    /**
-     * 根据用户ID获取通知列表
-     */
-    List<NotificationVo> getNotificationsByUserId(Long userId);
-    
-    /**
-     * 根据项目ID获取项目通知
-     */
-    List<NotificationVo> getNotificationsByProjectId(Long projectId);
-    
-    /**
-     * 获取系统通知
-     */
-    List<NotificationVo> getSystemNotifications();
+    List<NotificationVo> getNotifications(NotificationQueryDto queryDto);
     
     /**
      * 标记通知为已读
      */
-    boolean markAsRead(Long notificationId, Long userId);
-    
-    /**
-     * 批量标记通知为已读
-     */
-    boolean markAllAsRead(Long userId);
+    OperationResultVo markAsRead(NotificationMarkReadDto markReadDto);
     
     /**
      * 获取未读通知数量
      */
-    int getUnreadCount(Long userId);
+    NotificationCountVo getUnreadCount(NotificationQueryDto queryDto);
     
     /**
      * 删除通知
      */
-    boolean deleteNotification(Long notificationId);
+    OperationResultVo deleteNotification(NotificationDeleteDto deleteDto);
+    
+    /**
+     * 创建个人通知（内部使用）
+     */
+    Notification createPersonalNotification(NotificationCreateDto dto, Long senderId, String senderName);
+    
+    /**
+     * 创建项目通知（内部使用）
+     */
+    Notification createProjectNotification(NotificationCreateDto dto, Long senderId, String senderName);
 } 

@@ -3,23 +3,23 @@ package com.todo.dto;
 import lombok.Data;
 
 /**
- * 通知删除DTO
+ * 待办事项删除DTO
  */
 @Data
-public class NotificationDeleteDto {
-
+public class TodoDeleteDto {
+    
     /**
-     * 通知ID
+     * 待办事项ID
      */
-    private Long notificationId;
-
+    private Long todoId;
+    
     /**
      * 请求用户ID
      */
     private Long userId;
-
+    
     /**
      * 请求用户权限
      */
     private String userAuth;
-}
+} 

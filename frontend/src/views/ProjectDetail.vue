@@ -254,11 +254,13 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProjectDetail } from '../api/project'
 import { createTodo, updateTodoStatus, deleteTodo } from '../api/todo'
+import { formatDateForDisplay } from '../utils/dateUtils'
+import webSocketService from '../api/websocket.js'
 
 export default {
   name: 'ProjectDetail',
@@ -440,13 +442,52 @@ export default {
     }
 
     // 格式化日期
-    const formatDate = (dateString) => {
-      if (!dateString) return '-'
-      return new Date(dateString).toLocaleString('zh-CN')
+    const formatDate = formatDateForDisplay
+
+    // WebSocket连接和通知处理
+    const initWebSocket = async () => {
+      try {
+        if (!webSocketService.connected) {
+          await webSocketService.connect(userInfo)
+        }
+        
+        // 加入项目频道
+        webSocketService.joinProject(parseInt(projectId))
+        
+        // 监听通知事件
+        window.addEventListener('notificationReceived', handleNotificationReceived)
+        
+      } catch (error) {
+        console.error('WebSocket连接失败:', error)
+      }
+    }
+    
+    // 处理接收到的通知
+    const handleNotificationReceived = (event) => {
+      const notification = event.detail
+      console.log('ProjectDetail 收到通知:', notification)
+      
+      // 如果是待办相关通知，静默刷新项目详情（不显示额外消息，因为已经有系统通知了）
+      if (notification.type === 'personal' && 
+          notification.title === '新待办事项分配') {
+        fetchProjectDetail()
+      }
+      
+      // 如果是项目通知且是当前项目，静默刷新详情
+      if (notification.type === 'project' && 
+          notification.projectId === parseInt(projectId)) {
+        fetchProjectDetail()
+      }
     }
 
-    onMounted(() => {
+    onMounted(async () => {
       fetchProjectDetail()
+      await initWebSocket()
+    })
+    
+    onUnmounted(() => {
+      // 清理事件监听器
+      window.removeEventListener('notificationReceived', handleNotificationReceived)
     })
 
     return {

@@ -11,10 +11,15 @@ import java.util.List;
 public class ProjectAssignRequestDto {
     
     /**
+     * 请求用户ID
+     */
+    private Long userId;
+
+    /**
      * 请求用户权限
      */
     private String userAuth;
-    
+
     /**
      * 项目ID
      */

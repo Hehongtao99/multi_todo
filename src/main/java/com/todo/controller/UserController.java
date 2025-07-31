@@ -11,9 +11,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * 用户控制器
+ */
 @RestController
 @RequestMapping("/api/user")
-@CrossOrigin(origins = "*")
 public class UserController {
     
     @Autowired
@@ -25,7 +27,7 @@ public class UserController {
     @PostMapping("/register")
     public Result<UserVo> register(@RequestBody RegisterDto registerDto) {
         UserVo result = userService.register(registerDto);
-        return Result.success("注册成功", result);
+        return Result.success(result);
     }
     
     /**
@@ -34,7 +36,7 @@ public class UserController {
     @PostMapping("/login")
     public Result<UserVo> login(@RequestBody LoginDto loginDto) {
         UserVo result = userService.login(loginDto);
-        return Result.success("登录成功", result);
+        return Result.success(result);
     }
     
     /**

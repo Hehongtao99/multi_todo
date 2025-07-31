@@ -19,14 +19,13 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/notifications")
-@CrossOrigin(origins = "*")
 public class NotificationController {
     
     @Autowired
     private NotificationService notificationService;
     
     /**
-     * 发送通知（统一接口）
+     * 发送通知
      */
     @PostMapping("/send")
     public Result<OperationResultVo> sendNotification(@RequestBody NotificationSendDto sendDto) {
@@ -35,29 +34,11 @@ public class NotificationController {
     }
     
     /**
-     * 获取用户通知列表
+     * 获取通知列表
      */
-    @PostMapping("/user")
-    public Result<List<NotificationVo>> getUserNotifications(@RequestBody NotificationQueryDto queryDto) {
-        List<NotificationVo> result = notificationService.getUserNotifications(queryDto);
-        return Result.success(result);
-    }
-    
-    /**
-     * 获取项目通知列表
-     */
-    @PostMapping("/project")
-    public Result<List<NotificationVo>> getProjectNotifications(@RequestBody NotificationQueryDto queryDto) {
-        List<NotificationVo> result = notificationService.getProjectNotifications(queryDto);
-        return Result.success(result);
-    }
-    
-    /**
-     * 获取系统通知列表
-     */
-    @PostMapping("/system")
-    public Result<List<NotificationVo>> getSystemNotifications() {
-        List<NotificationVo> result = notificationService.getSystemNotifications();
+    @PostMapping("/list")
+    public Result<List<NotificationVo>> getNotifications(@RequestBody NotificationQueryDto queryDto) {
+        List<NotificationVo> result = notificationService.getNotifications(queryDto);
         return Result.success(result);
     }
     
@@ -67,15 +48,6 @@ public class NotificationController {
     @PostMapping("/mark-read")
     public Result<OperationResultVo> markAsRead(@RequestBody NotificationMarkReadDto markReadDto) {
         OperationResultVo result = notificationService.markAsRead(markReadDto);
-        return Result.success(result);
-    }
-    
-    /**
-     * 批量标记所有通知为已读
-     */
-    @PostMapping("/mark-all-read")
-    public Result<OperationResultVo> markAllAsRead(@RequestBody NotificationQueryDto queryDto) {
-        OperationResultVo result = notificationService.markAllAsRead(queryDto);
         return Result.success(result);
     }
     

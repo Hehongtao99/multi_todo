@@ -3,21 +3,26 @@ package com.todo.dto;
 import lombok.Data;
 
 /**
- * 通知删除DTO
+ * 待办事项状态更新DTO
  */
 @Data
-public class NotificationDeleteDto {
-
+public class TodoStatusUpdateDto {
+    
     /**
-     * 通知ID
+     * 待办事项ID
      */
-    private Long notificationId;
-
+    private Long todoId;
+    
+    /**
+     * 新状态
+     */
+    private String status;
+    
     /**
      * 请求用户ID
      */
     private Long userId;
-
+    
     /**
      * 请求用户权限
      */

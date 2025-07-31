@@ -5,6 +5,7 @@ import Dashboard from '../views/Dashboard.vue'
 import UserManagement from '../views/UserManagement.vue'
 import ProjectManagement from '../views/ProjectManagement.vue'
 import ProjectDetail from '../views/ProjectDetail.vue'
+import TodoManagement from '../views/TodoManagement.vue'
 
 const routes = [
   {
@@ -40,6 +41,11 @@ const routes = [
         path: 'projects/:id',
         name: 'ProjectDetail',
         component: ProjectDetail
+      },
+      {
+        path: 'todos',
+        name: 'TodoManagement',
+        component: TodoManagement
       }
     ]
   }

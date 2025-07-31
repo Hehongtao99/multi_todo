@@ -5,8 +5,22 @@
 </template>
 
 <script>
+import { onMounted } from 'vue'
+import notificationUtil from './utils/notification.js'
+
 export default {
-  name: 'App'
+  name: 'App',
+  setup() {
+    onMounted(async () => {
+      // 初始化通知权限
+      try {
+        await notificationUtil.init()
+        console.log('通知权限初始化完成')
+      } catch (error) {
+        console.error('通知权限初始化失败:', error)
+      }
+    })
+  }
 }
 </script>
 

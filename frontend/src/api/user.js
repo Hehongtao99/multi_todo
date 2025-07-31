@@ -19,10 +19,8 @@ export const login = (data) => {
 // 获取用户列表（仅管理员）
 export const getUserList = () => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-  return api.get('/user/list', {
-    headers: {
-      'userId': userInfo.id,
-      'userAuth': userInfo.auth
-    }
+  return api.post('/user/list', {
+    userId: userInfo.id,
+    userAuth: userInfo.auth
   })
 } 

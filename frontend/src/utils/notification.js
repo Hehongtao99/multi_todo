@@ -7,6 +7,7 @@ class NotificationUtil {
   constructor() {
     this.permission = null
     this.isElectron = this.checkElectronEnvironment()
+    this.recentNotifications = new Map() // 用于去重的通知记录
     this.init()
   }
 
@@ -14,7 +15,9 @@ class NotificationUtil {
    * 检查是否在Electron环境中
    */
   checkElectronEnvironment() {
-    return typeof window !== 'undefined' && window.electronAPI !== undefined
+    return typeof window !== 'undefined' && 
+           window.electronAPI !== undefined && 
+           window.electronAPI.isElectron === true
   }
 
   /**
@@ -70,6 +73,25 @@ class NotificationUtil {
       onClose = null
     } = options
 
+    // 去重检查：防止短时间内显示相同的通知
+    const notificationKey = `${title}-${message}`
+    const now = Date.now()
+    const lastShown = this.recentNotifications.get(notificationKey)
+    
+    if (lastShown && (now - lastShown) < 3000) { // 3秒内不重复显示相同通知
+      console.log('跳过重复通知:', title)
+      return null
+    }
+    
+    this.recentNotifications.set(notificationKey, now)
+    
+    // 清理过期的通知记录（保留最近10分钟的记录）
+    for (const [key, timestamp] of this.recentNotifications.entries()) {
+      if (now - timestamp > 600000) { // 10分钟
+        this.recentNotifications.delete(key)
+      }
+    }
+
     // 检查权限
     if (this.permission !== 'granted') {
       const hasPermission = await this.requestPermission()
@@ -81,7 +103,8 @@ class NotificationUtil {
 
     try {
       if (this.isElectron && window.electronAPI && window.electronAPI.showNotification) {
-        // 使用Electron的通知API
+        // 桌面应用：使用Electron的通知API
+        console.log('使用Electron通知')
         return await this.showElectronNotification({
           title,
           message,
@@ -92,7 +115,8 @@ class NotificationUtil {
           onClose
         })
       } else {
-        // 使用浏览器的通知API
+        // 浏览器环境：使用浏览器的通知API
+        console.log('使用浏览器通知')
         return await this.showBrowserNotification({
           title,
           message,
@@ -106,6 +130,10 @@ class NotificationUtil {
       }
     } catch (error) {
       console.error('显示通知失败:', error)
+      // 桌面应用不降级，浏览器应用可以考虑其他提示方式
+      if (!this.isElectron) {
+        console.warn('浏览器通知失败，可能需要用户授权或浏览器不支持')
+      }
       return null
     }
   }
@@ -125,21 +153,18 @@ class NotificationUtil {
     }
 
     try {
-      const notification = await window.electronAPI.showNotification(notificationOptions)
+      const result = await window.electronAPI.showNotification(notificationOptions)
       
-      // 绑定事件处理器
-      if (onClick) {
-        notification.on('click', onClick)
+      if (result.success) {
+        console.log('Electron通知发送成功')
+        return result.notification
+      } else {
+        throw new Error(result.error)
       }
-      if (onClose) {
-        notification.on('close', onClose)
-      }
-
-      return notification
     } catch (error) {
       console.error('显示Electron通知失败:', error)
-      // 降级到浏览器通知
-      return await this.showBrowserNotification(options)
+      // 对于桌面应用，不降级到浏览器通知，直接返回错误
+      throw error
     }
   }
 

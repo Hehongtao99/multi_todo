@@ -11,14 +11,19 @@ import java.time.LocalDateTime;
 public class NotificationSendDto {
     
     /**
-     * 管理员ID
+     * 请求用户ID
      */
-    private Long adminId;
+    private Long userId;
     
     /**
-     * 管理员姓名
+     * 请求用户权限
      */
-    private String adminName;
+    private String userAuth;
+    
+    /**
+     * 发送者姓名
+     */
+    private String senderName;
     
     /**
      * 通知标题

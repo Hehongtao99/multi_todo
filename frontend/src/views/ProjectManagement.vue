@@ -197,7 +197,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getProjectList, createProject, assignProject } from '../api/project'
@@ -337,9 +337,47 @@ export default {
       return new Date(dateString).toLocaleString('zh-CN')
     }
 
-    onMounted(() => {
+    // WebSocket连接和通知处理
+    const initWebSocket = async () => {
+      try {
+        if (!webSocketService.connected) {
+          await webSocketService.connect(userInfo)
+        }
+        
+        // 监听通知事件
+        window.addEventListener('notificationReceived', handleNotificationReceived)
+        
+      } catch (error) {
+        console.error('WebSocket连接失败:', error)
+      }
+    }
+    
+    // 处理接收到的通知
+    const handleNotificationReceived = (event) => {
+      const notification = event.detail
+      console.log('ProjectManagement 收到通知:', notification)
+      
+      // 如果是项目分配通知，静默刷新项目列表（不显示额外消息，因为已经有系统通知了）
+      if (notification.type === 'personal' && 
+          notification.title === '项目分配通知') {
+        fetchProjectList()
+      }
+      
+      // 如果是项目相关通知，也可以刷新列表
+      if (notification.type === 'project') {
+        fetchProjectList()
+      }
+    }
+    
+    onMounted(async () => {
       fetchProjectList()
       fetchUserList()
+      await initWebSocket()
+    })
+    
+    onUnmounted(() => {
+      // 清理事件监听器
+      window.removeEventListener('notificationReceived', handleNotificationReceived)
     })
 
     return {

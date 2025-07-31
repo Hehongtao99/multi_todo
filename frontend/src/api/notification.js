@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const BASE_URL = 'http://localhost:8080/api'
+// 创建axios实例
+const api = axios.create({
+  baseURL: 'http://localhost:8080/api',
+  timeout: 10000
+})
 
 /**
  * 通知API服务
@@ -8,46 +12,38 @@ const BASE_URL = 'http://localhost:8080/api'
 class NotificationAPI {
   
   /**
-   * 管理员发送系统通知
+   * 发送通知
    */
-  static async sendSystemNotification(notificationData, adminId, adminName) {
+  static async sendNotification(notificationData) {
     try {
-      const response = await axios.post(`${BASE_URL}/notifications/system`, notificationData, {
-        params: { adminId, adminName }
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const response = await api.post('/notifications/send', {
+        userId: userInfo.id,
+        userAuth: userInfo.auth,
+        senderName: userInfo.username,
+        ...notificationData
       })
       return response.data
     } catch (error) {
-      console.error('发送系统通知失败:', error)
+      console.error('发送通知失败:', error)
       throw error
     }
   }
 
   /**
-   * 管理员发送项目通知
+   * 获取通知列表
    */
-  static async sendProjectNotification(notificationData, adminId, adminName) {
+  static async getNotifications(queryParams = {}) {
     try {
-      const response = await axios.post(`${BASE_URL}/notifications/project`, notificationData, {
-        params: { adminId, adminName }
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const response = await api.post('/notifications/list', {
+        userId: userInfo.id,
+        userAuth: userInfo.auth,
+        ...queryParams
       })
       return response.data
     } catch (error) {
-      console.error('发送项目通知失败:', error)
-      throw error
-    }
-  }
-
-  /**
-   * 管理员发送个人通知
-   */
-  static async sendPersonalNotification(notificationData, adminId, adminName) {
-    try {
-      const response = await axios.post(`${BASE_URL}/notifications/personal`, notificationData, {
-        params: { adminId, adminName }
-      })
-      return response.data
-    } catch (error) {
-      console.error('发送个人通知失败:', error)
+      console.error('获取通知列表失败:', error)
       throw error
     }
   }
@@ -55,9 +51,13 @@ class NotificationAPI {
   /**
    * 获取用户通知列表
    */
-  static async getUserNotifications(userId) {
+  static async getUserNotifications(userId = null) {
     try {
-      const response = await axios.get(`${BASE_URL}/notifications/user/${userId}`)
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const response = await api.post('/notifications/list', {
+        userId: userId || userInfo.id,
+        userAuth: userInfo.auth
+      })
       return response.data
     } catch (error) {
       console.error('获取用户通知失败:', error)
@@ -70,7 +70,13 @@ class NotificationAPI {
    */
   static async getProjectNotifications(projectId) {
     try {
-      const response = await axios.get(`${BASE_URL}/notifications/project/${projectId}`)
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const response = await api.post('/notifications/list', {
+        userId: userInfo.id,
+        userAuth: userInfo.auth,
+        projectId: projectId,
+        type: 'project'
+      })
       return response.data
     } catch (error) {
       console.error('获取项目通知失败:', error)
@@ -83,7 +89,12 @@ class NotificationAPI {
    */
   static async getSystemNotifications() {
     try {
-      const response = await axios.get(`${BASE_URL}/notifications/system`)
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const response = await api.post('/notifications/list', {
+        userId: userInfo.id,
+        userAuth: userInfo.auth,
+        type: 'system'
+      })
       return response.data
     } catch (error) {
       console.error('获取系统通知失败:', error)
@@ -94,10 +105,13 @@ class NotificationAPI {
   /**
    * 标记通知为已读
    */
-  static async markAsRead(notificationId, userId) {
+  static async markAsRead(notificationId) {
     try {
-      const response = await axios.put(`${BASE_URL}/notifications/${notificationId}/read`, null, {
-        params: { userId }
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const response = await api.post('/notifications/mark-read', {
+        notificationId: notificationId,
+        userId: userInfo.id,
+        userAuth: userInfo.auth
       })
       return response.data
     } catch (error) {
@@ -107,26 +121,15 @@ class NotificationAPI {
   }
 
   /**
-   * 批量标记所有通知为已读
-   */
-  static async markAllAsRead(userId) {
-    try {
-      const response = await axios.put(`${BASE_URL}/notifications/read-all`, null, {
-        params: { userId }
-      })
-      return response.data
-    } catch (error) {
-      console.error('批量标记已读失败:', error)
-      throw error
-    }
-  }
-
-  /**
    * 获取未读通知数量
    */
-  static async getUnreadCount(userId) {
+  static async getUnreadCount() {
     try {
-      const response = await axios.get(`${BASE_URL}/notifications/unread-count/${userId}`)
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const response = await api.post('/notifications/unread-count', {
+        userId: userInfo.id,
+        userAuth: userInfo.auth
+      })
       return response.data
     } catch (error) {
       console.error('获取未读通知数量失败:', error)
@@ -139,12 +142,50 @@ class NotificationAPI {
    */
   static async deleteNotification(notificationId) {
     try {
-      const response = await axios.delete(`${BASE_URL}/notifications/${notificationId}`)
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const response = await api.post('/notifications/delete', {
+        notificationId: notificationId,
+        userId: userInfo.id,
+        userAuth: userInfo.auth
+      })
       return response.data
     } catch (error) {
       console.error('删除通知失败:', error)
       throw error
     }
+  }
+
+  /**
+   * 发送系统通知（管理员专用）
+   */
+  static async sendSystemNotification(notificationData) {
+    return this.sendNotification({
+      type: 'system',
+      priority: 'normal',
+      ...notificationData
+    })
+  }
+
+  /**
+   * 发送项目通知（管理员专用）
+   */
+  static async sendProjectNotification(notificationData) {
+    return this.sendNotification({
+      type: 'project',
+      priority: 'normal',
+      ...notificationData
+    })
+  }
+
+  /**
+   * 发送个人通知（管理员专用）
+   */
+  static async sendPersonalNotification(notificationData) {
+    return this.sendNotification({
+      type: 'personal',
+      priority: 'normal',
+      ...notificationData
+    })
   }
 }
 

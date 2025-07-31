@@ -8,6 +8,15 @@ spring:
     username: root
     password: 123456
   
+  # Jackson时间序列化配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+  
   # WebSocket配置
   websocket:
     allowed-origins: "*"

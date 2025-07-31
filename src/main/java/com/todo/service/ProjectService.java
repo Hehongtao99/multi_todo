@@ -1,10 +1,12 @@
 package com.todo.service;
 
-import com.todo.dto.ProjectAssignDto;
-import com.todo.dto.ProjectCreateDto;
-import com.todo.entity.Project;
+import com.todo.dto.ProjectAssignRequestDto;
+import com.todo.dto.ProjectCreateRequestDto;
+import com.todo.dto.ProjectListQueryDto;
+import com.todo.dto.ProjectDetailQueryDto;
 import com.todo.vo.ProjectDetailVo;
 import com.todo.vo.ProjectVo;
+import com.todo.vo.OperationResultVo;
 
 import java.util.List;
 
@@ -13,25 +15,20 @@ public interface ProjectService {
     /**
      * 创建项目
      */
-    Project createProject(ProjectCreateDto projectCreateDto, Long creatorId);
+    ProjectVo createProject(ProjectCreateRequestDto projectCreateDto);
 
     /**
-     * 获取所有项目（管理员）
+     * 获取项目列表（根据用户权限返回不同数据）
      */
-    List<ProjectVo> getAllProjects();
-
-    /**
-     * 根据分配人ID获取项目（普通用户）
-     */
-    List<ProjectVo> getProjectsByAssignee(Long assigneeId);
+    List<ProjectVo> getProjectList(ProjectListQueryDto queryDto);
 
     /**
      * 分配项目
      */
-    Project assignProject(ProjectAssignDto projectAssignDto);
+    OperationResultVo assignProject(ProjectAssignRequestDto assignDto);
 
     /**
      * 获取项目详情
      */
-    ProjectDetailVo getProjectDetail(Long projectId);
+    ProjectDetailVo getProjectDetail(ProjectDetailQueryDto queryDto);
 }

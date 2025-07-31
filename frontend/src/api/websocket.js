@@ -11,6 +11,7 @@ class WebSocketService {
     this.messageHandlers = new Map()
     this.reconnectAttempts = 0
     this.maxReconnectAttempts = 5
+    this.subscriptions = new Map() // 存储订阅引用，用于取消订阅
   }
 
   /**
@@ -59,6 +60,18 @@ class WebSocketService {
   }
 
   /**
+   * 清理所有订阅
+   */
+  clearSubscriptions() {
+    for (const [key, subscription] of this.subscriptions.entries()) {
+      if (subscription && subscription.unsubscribe) {
+        subscription.unsubscribe()
+      }
+    }
+    this.subscriptions.clear()
+  }
+
+  /**
    * 断开WebSocket连接
    */
   disconnect() {
@@ -67,6 +80,9 @@ class WebSocketService {
       if (this.currentProject) {
         this.leaveProject()
       }
+      
+      // 清理所有订阅
+      this.clearSubscriptions()
       
       this.client.deactivate()
       this.connected = false
@@ -81,16 +97,21 @@ class WebSocketService {
   subscribeToTopics() {
     if (!this.client || !this.connected) return
 
+    // 清理之前的订阅
+    this.clearSubscriptions()
+
     // 订阅全局消息
-    this.client.subscribe('/topic/global', (message) => {
+    const globalSub = this.client.subscribe('/topic/global', (message) => {
       this.handleMessage('global', JSON.parse(message.body))
     })
+    this.subscriptions.set('global', globalSub)
 
     // 订阅个人消息
     if (this.currentUser && this.currentUser.id) {
-      this.client.subscribe(`/queue/user/${this.currentUser.id}`, (message) => {
+      const personalSub = this.client.subscribe(`/queue/user/${this.currentUser.id}`, (message) => {
         this.handleMessage('personal', JSON.parse(message.body))
       })
+      this.subscriptions.set('personal', personalSub)
     }
   }
 
@@ -103,12 +124,30 @@ class WebSocketService {
       return
     }
 
+    // 如果已经在当前项目中，不需要重复加入
+    if (this.currentProject === projectId) {
+      console.log(`已经在项目 ${projectId} 中`)
+      return
+    }
+
+    // 如果之前在其他项目中，先离开
+    if (this.currentProject && this.currentProject !== projectId) {
+      this.leaveProject()
+    }
+
     this.currentProject = projectId
 
+    // 取消之前的项目订阅（如果存在）
+    const existingProjectSub = this.subscriptions.get('project')
+    if (existingProjectSub) {
+      existingProjectSub.unsubscribe()
+    }
+
     // 订阅项目消息
-    this.client.subscribe(`/topic/project/${projectId}`, (message) => {
+    const projectSub = this.client.subscribe(`/topic/project/${projectId}`, (message) => {
       this.handleMessage('project', JSON.parse(message.body))
     })
+    this.subscriptions.set('project', projectSub)
 
     // 发送加入项目消息
     const message = {
@@ -124,6 +163,8 @@ class WebSocketService {
       destination: '/app/project.join',
       body: JSON.stringify(message)
     })
+
+    console.log(`已加入项目 ${projectId}`)
   }
 
   /**
@@ -263,26 +304,29 @@ class WebSocketService {
     console.log('收到通知:', notification)
     
     try {
-      // 根据通知类型显示不同的Windows通知
+      // 只显示一次系统通知，根据通知类型显示不同的标题
+      let notificationTitle = notification.title
       switch (notification.type) {
         case 'system':
-          await notificationUtil.showSystemNotification(notification)
+          notificationTitle = `系统通知: ${notification.title}`
           break
         case 'project':
-          await notificationUtil.showProjectNotification(notification)
+          notificationTitle = `项目通知: ${notification.title}`
           break
         case 'personal':
-          await notificationUtil.showPersonalNotification(notification)
+          notificationTitle = `个人通知: ${notification.title}`
           break
-        default:
-          await notificationUtil.showNotification({
-            title: notification.title,
-            message: notification.content,
-            priority: notification.priority
-          })
       }
 
-      // 触发通知接收事件
+      // 只显示一次通知
+      await notificationUtil.showNotification({
+        title: notificationTitle,
+        message: notification.content,
+        priority: notification.priority,
+        tag: `${notification.type}-${notification.id || Date.now()}` // 使用 tag 防止重复通知
+      })
+
+      // 触发通知接收事件供页面组件处理业务逻辑
       const event = new CustomEvent('notificationReceived', {
         detail: notification
       })

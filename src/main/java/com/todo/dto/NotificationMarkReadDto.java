@@ -9,7 +9,7 @@ import lombok.Data;
 public class NotificationMarkReadDto {
     
     /**
-     * 通知ID
+     * 通知ID（为空时标记所有通知为已读）
      */
     private Long notificationId;
     
@@ -17,4 +17,9 @@ public class NotificationMarkReadDto {
      * 用户ID
      */
     private Long userId;
+    
+    /**
+     * 用户权限
+     */
+    private String userAuth;
 } 

@@ -154,7 +154,7 @@ export default {
           router.push('/dashboard/users')
           break
         case 'todos':
-          ElMessage.info('待办事项功能待开发')
+          router.push('/dashboard/todos')
           break
         default:
           break

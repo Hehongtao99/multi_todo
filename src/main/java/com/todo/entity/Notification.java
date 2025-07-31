@@ -74,7 +74,7 @@ public class Notification {
      * 创建时间
      */
     private LocalDateTime createTime;
-    
+
     /**
      * 更新时间
      */

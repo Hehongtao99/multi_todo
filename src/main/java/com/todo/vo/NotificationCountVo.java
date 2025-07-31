@@ -7,15 +7,25 @@ import lombok.Data;
  */
 @Data
 public class NotificationCountVo {
-    
+
+    /**
+     * 用户ID
+     */
+    private Long userId;
+
     /**
      * 未读通知数量
      */
     private Integer unreadCount;
-    
+
     public NotificationCountVo() {}
-    
+
     public NotificationCountVo(Integer unreadCount) {
         this.unreadCount = unreadCount;
     }
-} 
+
+    public NotificationCountVo(Long userId, Integer unreadCount) {
+        this.userId = userId;
+        this.unreadCount = unreadCount;
+    }
+}
