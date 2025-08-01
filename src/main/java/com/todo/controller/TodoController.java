@@ -96,6 +96,19 @@ public class TodoController {
         }
     }
 
+    /**
+     * 管理员修改待办事项
+     */
+    @PutMapping("/admin/update")
+    public Result<TodoVo> adminUpdateTodo(@RequestBody AdminTodoUpdateDto adminUpdateDto) {
+        try {
+            TodoVo todoVo = todoService.adminUpdateTodo(adminUpdateDto);
+            return Result.success("管理员修改成功", todoVo);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
     // ========== 以下为前端兼容的GET接口 ==========
 
     /**

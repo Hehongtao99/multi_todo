@@ -141,6 +141,12 @@
                               编辑
                             </el-dropdown-item>
                             <el-dropdown-item 
+                              v-if="userInfo.auth === 'admin'" 
+                              command="admin-edit"
+                            >
+                              管理员编辑
+                            </el-dropdown-item>
+                            <el-dropdown-item 
                               v-if="canEditTodo(todo)" 
                               command="start"
                             >
@@ -166,12 +172,12 @@
                     <div class="time-item">
                       <span class="time-icon">📅</span>
                       <span class="time-label">开始</span>
-                      <span class="time-value">{{ todo.startTime ? formatShortDateTime(todo.startTime) : '未设置' }}</span>
+                      <span class="time-value">{{ formatDetailedDateTime(todo.startTime) }}</span>
                     </div>
                     <div class="time-item">
                       <span class="time-icon">⏰</span>
                       <span class="time-label">结束</span>
-                      <span class="time-value">{{ todo.dueDate ? formatShortDateTime(todo.dueDate) : '未设置' }}</span>
+                      <span class="time-value">{{ formatDetailedDateTime(todo.dueDate) }}</span>
                     </div>
                   </div>
                   <div class="card-priority-badge">
@@ -246,6 +252,12 @@
                               编辑
                             </el-dropdown-item>
                             <el-dropdown-item 
+                              v-if="userInfo.auth === 'admin'" 
+                              command="admin-edit"
+                            >
+                              管理员编辑
+                            </el-dropdown-item>
+                            <el-dropdown-item 
                               v-if="canEditTodo(todo)" 
                               command="complete"
                             >
@@ -277,12 +289,12 @@
                     <div class="time-item">
                       <span class="time-icon">📅</span>
                       <span class="time-label">开始</span>
-                      <span class="time-value">{{ todo.startTime ? formatShortDateTime(todo.startTime) : '未设置' }}</span>
+                      <span class="time-value">{{ formatDetailedDateTime(todo.startTime) }}</span>
                     </div>
                     <div class="time-item">
                       <span class="time-icon">⏰</span>
                       <span class="time-label">结束</span>
-                      <span class="time-value">{{ todo.dueDate ? formatShortDateTime(todo.dueDate) : '未设置' }}</span>
+                      <span class="time-value">{{ formatDetailedDateTime(todo.dueDate) }}</span>
                     </div>
                   </div>
                   <div class="card-priority-badge">
@@ -356,6 +368,12 @@
                           <el-dropdown-menu>
                             <el-dropdown-item command="view">查看详情</el-dropdown-item>
                             <el-dropdown-item 
+                              v-if="userInfo.auth === 'admin'" 
+                              command="admin-edit"
+                            >
+                              管理员编辑
+                            </el-dropdown-item>
+                            <el-dropdown-item 
                               v-if="canEditTodo(todo)" 
                               command="reopen"
                             >
@@ -381,12 +399,12 @@
                     <div class="time-item">
                       <span class="time-icon">📅</span>
                       <span class="time-label">开始</span>
-                      <span class="time-value">{{ todo.startTime ? formatShortDateTime(todo.startTime) : '未设置' }}</span>
+                      <span class="time-value">{{ formatDetailedDateTime(todo.startTime) }}</span>
                     </div>
                     <div class="time-item">
                       <span class="time-icon">⏰</span>
                       <span class="time-label">结束</span>
-                      <span class="time-value">{{ todo.dueDate ? formatShortDateTime(todo.dueDate) : '未设置' }}</span>
+                      <span class="time-value">{{ formatDetailedDateTime(todo.dueDate) }}</span>
                     </div>
                   </div>
                   <div class="card-priority-badge">
@@ -409,7 +427,7 @@
     <!-- 创建/编辑待办事项对话框 -->
     <el-dialog
       v-model="showCreateDialog"
-      :title="editingTodo ? '编辑任务' : '新建任务'"
+      :title="getDialogTitle()"
       width="600px"
       @close="resetForm"
       class="todo-dialog"
@@ -494,6 +512,27 @@
               />
             </el-form-item>
           </el-col>
+          <el-col :span="12" v-if="isAdminEditing">
+            <el-form-item label="任务状态" prop="status">
+              <el-select v-model="todoForm.status" placeholder="选择状态">
+                <el-option label="待处理" value="pending" />
+                <el-option label="进行中" value="in_progress" />
+                <el-option label="已完成" value="completed" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row v-if="isAdminEditing">
+          <el-col :span="24">
+            <el-form-item label="修改原因" prop="updateReason">
+              <el-input
+                v-model="todoForm.updateReason"
+                type="textarea"
+                :rows="2"
+                placeholder="请说明修改原因（可选）"
+              />
+            </el-form-item>
+          </el-col>
         </el-row>
       </el-form>
       <template #footer>
@@ -553,11 +592,15 @@
                 <div class="info-grid">
                   <div class="info-item">
                     <span class="info-label">创建时间</span>
-                    <span class="info-value">{{ formatDate(selectedTodo.createdTime) }}</span>
+                    <span class="info-value">{{ formatDetailedDateTime(selectedTodo.createdTime) }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">开始时间</span>
+                    <span class="info-value">{{ formatDetailedDateTime(selectedTodo.startTime) }}</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">截止时间</span>
-                    <span class="info-value">{{ formatDate(selectedTodo.dueDate) }}</span>
+                    <span class="info-value">{{ formatDetailedDateTime(selectedTodo.dueDate) }}</span>
                   </div>
                   <div class="info-item">
                     <span class="info-label">剩余时间</span>
@@ -595,11 +638,12 @@ import {
   getTodoDetail,
   updateTodoStatus,
   getAllTodos,
-  getTodosByDate
+  getTodosByDate,
+  adminUpdateTodo
 } from '../api/todo'
 import { getProjectList } from '../api/project'
 import { getUserList } from '../api/user'
-import { formatDateForDisplay } from '../utils/dateUtils'
+import { formatDateForDisplay, formatDetailedDateTime } from '../utils/dateUtils'
 
 export default {
   name: 'TodoManagement',
@@ -634,6 +678,7 @@ export default {
     const showDetailDialog = ref(false)
     const editingTodo = ref(null)
     const selectedTodo = ref(null)
+    const isAdminEditing = ref(false)
     
     // 表单数据
     const todoForm = reactive({
@@ -643,7 +688,9 @@ export default {
       projectId: '',
       assigneeId: '',
       startTime: '',
-      dueDate: ''
+      dueDate: '',
+      status: 'pending',
+      updateReason: ''
     })
     
     // 表单验证规则
@@ -1000,6 +1047,9 @@ export default {
         case 'edit':
           editTodo(todo)
           break
+        case 'admin-edit':
+          adminEditTodo(todo)
+          break
         case 'delete':
           deleteTodoItem(todo)
           break
@@ -1043,15 +1093,50 @@ export default {
       }
 
       editingTodo.value = todo
+      isAdminEditing.value = false
       Object.assign(todoForm, {
         title: todo.title,
         description: todo.description,
         priority: todo.priority,
         projectId: todo.projectId,
         assigneeId: todo.assigneeId,
-        dueDate: todo.dueDate
+        startTime: todo.startTime,
+        dueDate: todo.dueDate,
+        status: 'pending',
+        updateReason: ''
       })
       showCreateDialog.value = true
+    }
+
+    // 管理员编辑待办事项
+    const adminEditTodo = (todo) => {
+      if (userInfo.value.auth !== 'admin') {
+        ElMessage.warning('只有管理员可以使用此功能')
+        return
+      }
+
+      editingTodo.value = todo
+      isAdminEditing.value = true
+      Object.assign(todoForm, {
+        title: todo.title,
+        description: todo.description,
+        priority: todo.priority,
+        projectId: todo.projectId,
+        assigneeId: todo.assigneeId,
+        startTime: todo.startTime,
+        dueDate: todo.dueDate,
+        status: todo.status,
+        updateReason: ''
+      })
+      showCreateDialog.value = true
+    }
+
+    // 获取对话框标题
+    const getDialogTitle = () => {
+      if (!editingTodo.value) {
+        return '新建任务'
+      }
+      return isAdminEditing.value ? '管理员编辑任务' : '编辑任务'
     }
 
     // 删除待办事项
@@ -1093,11 +1178,21 @@ export default {
 
         if (editingTodo.value) {
           // 更新待办事项
-          await updateTodo({
-            id: editingTodo.value.id,
-            ...todoForm
-          })
-          ElMessage.success('更新成功')
+          if (isAdminEditing.value) {
+            // 管理员编辑
+            await adminUpdateTodo({
+              id: editingTodo.value.id,
+              ...todoForm
+            })
+            ElMessage.success('管理员修改成功')
+          } else {
+            // 普通编辑
+            await updateTodo({
+              id: editingTodo.value.id,
+              ...todoForm
+            })
+            ElMessage.success('更新成功')
+          }
         } else {
           // 创建待办事项
           await createTodo(todoForm)
@@ -1117,6 +1212,7 @@ export default {
     // 重置表单
     const resetForm = () => {
       editingTodo.value = null
+      isAdminEditing.value = false
       Object.assign(todoForm, {
         title: '',
         description: '',
@@ -1124,7 +1220,9 @@ export default {
         projectId: '',
         assigneeId: '',
         startTime: '',
-        dueDate: ''
+        dueDate: '',
+        status: 'pending',
+        updateReason: ''
       })
       if (todoFormRef.value) {
         todoFormRef.value.clearValidate()
@@ -1148,6 +1246,7 @@ export default {
       showDetailDialog,
       editingTodo,
       selectedTodo,
+      isAdminEditing,
       todoForm,
       todoFormRules,
       todoFormRef,
@@ -1164,6 +1263,7 @@ export default {
       formatDate,
       formatShortDate,
       formatShortDateTime,
+      formatDetailedDateTime,
       getTimelineStatus,
       getTimelineText,
       loadTodos,
@@ -1178,6 +1278,8 @@ export default {
       handleTodoAction,
       updateTodoStatusAction,
       editTodo,
+      adminEditTodo,
+      getDialogTitle,
       deleteTodoItem,
       saveTodo,
       resetForm
@@ -1637,7 +1739,8 @@ export default {
   color: #374151;
   font-weight: 500;
   flex: 1;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .card-priority-badge {

@@ -19,6 +19,8 @@ public class TodoUpdateDto {
     
     private Long assigneeId;
     
+    private Long projectId;
+    
     private LocalDateTime startTime;
     
     private LocalDateTime dueDate;
@@ -32,4 +34,9 @@ public class TodoUpdateDto {
      * 请求用户权限
      */
     private String userAuth;
+    
+    /**
+     * 是否强制更新（管理员权限）
+     */
+    private Boolean forceUpdate = false;
 }

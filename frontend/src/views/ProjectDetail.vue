@@ -113,12 +113,12 @@
         <el-table-column prop="assigneeName" label="分配给" width="120" />
         <el-table-column prop="startTime" label="开始时间" width="180">
           <template #default="scope">
-            {{ scope.row.startTime ? formatDate(scope.row.startTime) : '无' }}
+            {{ formatDetailedDateTime(scope.row.startTime) }}
           </template>
         </el-table-column>
         <el-table-column prop="dueDate" label="截止日期" width="180">
           <template #default="scope">
-            {{ scope.row.dueDate ? formatDate(scope.row.dueDate) : '无' }}
+            {{ formatDetailedDateTime(scope.row.dueDate) }}
           </template>
         </el-table-column>
         <el-table-column prop="createdTime" label="创建时间" width="180">
@@ -134,6 +134,14 @@
               @click="handleUpdateStatus(scope.row)"
             >
               更新状态
+            </el-button>
+            <el-button 
+              v-if="isAdmin"
+              type="warning" 
+              size="small"
+              @click="handleAdminEditTodo(scope.row)"
+            >
+              管理员编辑
             </el-button>
             <el-button 
               v-if="isAdmin"
@@ -264,6 +272,123 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 管理员编辑待办对话框 -->
+    <el-dialog
+      v-model="showAdminEditDialog"
+      title="管理员编辑待办事项"
+      width="600px"
+    >
+      <el-form 
+        :model="adminEditForm" 
+        label-width="100px"
+        ref="adminEditFormRef"
+      >
+        <el-form-item label="标题" required>
+          <el-input 
+            v-model="adminEditForm.title" 
+            placeholder="请输入待办标题"
+          />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input 
+            v-model="adminEditForm.description" 
+            type="textarea"
+            :rows="3"
+            placeholder="请输入待办描述"
+          />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="优先级">
+              <el-select v-model="adminEditForm.priority" placeholder="请选择优先级">
+                <el-option label="低" value="low" />
+                <el-option label="中" value="medium" />
+                <el-option label="高" value="high" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态">
+              <el-select v-model="adminEditForm.status" placeholder="请选择状态">
+                <el-option label="待处理" value="pending" />
+                <el-option label="进行中" value="in_progress" />
+                <el-option label="已完成" value="completed" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="分配给">
+              <el-select 
+                v-model="adminEditForm.assigneeId" 
+                placeholder="请选择分配用户"
+                clearable
+              >
+                <el-option
+                  v-for="user in assignedUsers"
+                  :key="user.userId"
+                  :label="user.username"
+                  :value="user.userId"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="项目">
+              <el-input :value="projectDetail?.projectName" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="开始时间">
+              <el-date-picker
+                v-model="adminEditForm.startTime"
+                type="datetime"
+                placeholder="选择开始时间"
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="截止时间">
+              <el-date-picker
+                v-model="adminEditForm.dueDate"
+                type="datetime"
+                placeholder="选择截止时间"
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="修改原因">
+          <el-input 
+            v-model="adminEditForm.updateReason" 
+            type="textarea"
+            :rows="2"
+            placeholder="请说明修改原因（可选）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showAdminEditDialog = false">取消</el-button>
+          <el-button 
+            type="primary" 
+            @click="handleConfirmAdminEdit"
+            :loading="adminEditLoading"
+          >
+            确认修改
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -272,8 +397,8 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProjectDetail } from '../api/project'
-import { createTodo, updateTodoStatus, deleteTodo } from '../api/todo'
-import { formatDateForDisplay } from '../utils/dateUtils'
+import { createTodo, updateTodoStatus, deleteTodo, adminUpdateTodo } from '../api/todo'
+import { formatDateForDisplay, formatDetailedDateTime } from '../utils/dateUtils'
 import webSocketService from '../api/websocket.js'
 
 export default {
@@ -290,11 +415,14 @@ export default {
     
     const showCreateTodoDialog = ref(false)
     const showStatusDialog = ref(false)
+    const showAdminEditDialog = ref(false)
     const createTodoLoading = ref(false)
     const updateStatusLoading = ref(false)
+    const adminEditLoading = ref(false)
     
     const selectedTodo = ref(null)
     const newStatus = ref('')
+    const adminEditFormRef = ref(null)
     
     const todoForm = ref({
       title: '',
@@ -304,6 +432,19 @@ export default {
       startTime: null,
       dueDate: null,
       projectId: parseInt(projectId)
+    })
+
+    const adminEditForm = ref({
+      id: null,
+      title: '',
+      description: '',
+      priority: 'medium',
+      status: 'pending',
+      assigneeId: null,
+      projectId: parseInt(projectId),
+      startTime: null,
+      dueDate: null,
+      updateReason: ''
     })
 
     // 获取当前用户信息
@@ -417,6 +558,54 @@ export default {
       }
     }
 
+    // 管理员编辑待办事项
+    const handleAdminEditTodo = (todo) => {
+      if (!isAdmin.value) {
+        ElMessage.warning('只有管理员可以使用此功能')
+        return
+      }
+
+      // 填充表单数据
+      adminEditForm.value = {
+        id: todo.id,
+        title: todo.title,
+        description: todo.description,
+        priority: todo.priority,
+        status: todo.status,
+        assigneeId: todo.assigneeId,
+        projectId: parseInt(projectId),
+        startTime: todo.startTime,
+        dueDate: todo.dueDate,
+        updateReason: ''
+      }
+      
+      showAdminEditDialog.value = true
+    }
+
+    // 确认管理员编辑
+    const handleConfirmAdminEdit = async () => {
+      if (!adminEditForm.value.title?.trim()) {
+        ElMessage.warning('请输入待办标题')
+        return
+      }
+
+      adminEditLoading.value = true
+      try {
+        const response = await adminUpdateTodo(adminEditForm.value)
+        if (response.data.code === 200) {
+          ElMessage.success('管理员修改成功')
+          showAdminEditDialog.value = false
+          fetchProjectDetail() // 重新获取项目详情
+        } else {
+          ElMessage.error(response.data.message)
+        }
+      } catch (error) {
+        ElMessage.error('管理员修改失败')
+      } finally {
+        adminEditLoading.value = false
+      }
+    }
+
     // 获取状态类型
     const getStatusType = (status) => {
       const statusMap = {
@@ -514,21 +703,28 @@ export default {
       assignedUsers,
       showCreateTodoDialog,
       showStatusDialog,
+      showAdminEditDialog,
       createTodoLoading,
       updateStatusLoading,
+      adminEditLoading,
       selectedTodo,
       newStatus,
       todoForm,
+      adminEditForm,
+      adminEditFormRef,
       isAdmin,
       handleCreateTodo,
       handleUpdateStatus,
       handleConfirmUpdateStatus,
       handleDeleteTodo,
+      handleAdminEditTodo,
+      handleConfirmAdminEdit,
       getStatusType,
       getStatusText,
       getPriorityType,
       getPriorityText,
-      formatDate
+      formatDate,
+      formatDetailedDateTime
     }
   }
 }

@@ -29,6 +29,8 @@ public class TodoVo {
     
     private String creatorName;
     
+    private LocalDateTime startTime;
+    
     private LocalDateTime dueDate;
     
     private LocalDateTime createdTime;

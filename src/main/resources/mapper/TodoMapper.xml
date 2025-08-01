@@ -16,6 +16,7 @@
             u1.username as assigneeName,
             t.creator_id as creatorId,
             u2.username as creatorName,
+            t.start_time as startTime,
             t.due_date as dueDate,
             t.created_time as createdTime,
             t.updated_time as updatedTime
@@ -41,6 +42,7 @@
             u1.username as assigneeName,
             t.creator_id as creatorId,
             u2.username as creatorName,
+            t.start_time as startTime,
             t.due_date as dueDate,
             t.created_time as createdTime,
             t.updated_time as updatedTime
@@ -66,6 +68,7 @@
             u1.username as assigneeName,
             t.creator_id as creatorId,
             u2.username as creatorName,
+            t.start_time as startTime,
             t.due_date as dueDate,
             t.created_time as createdTime,
             t.updated_time as updatedTime

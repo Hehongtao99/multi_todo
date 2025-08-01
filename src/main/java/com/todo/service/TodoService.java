@@ -5,6 +5,7 @@ import com.todo.dto.TodoUpdateDto;
 import com.todo.dto.TodoQueryDto;
 import com.todo.dto.TodoDeleteDto;
 import com.todo.dto.TodoStatusUpdateDto;
+import com.todo.dto.AdminTodoUpdateDto;
 import com.todo.vo.TodoVo;
 import com.todo.vo.OperationResultVo;
 
@@ -41,4 +42,9 @@ public interface TodoService {
      * 更新待办状态
      */
     TodoVo updateTodoStatus(TodoStatusUpdateDto statusUpdateDto);
+
+    /**
+     * 管理员修改待办事项
+     */
+    TodoVo adminUpdateTodo(AdminTodoUpdateDto adminUpdateDto);
 }

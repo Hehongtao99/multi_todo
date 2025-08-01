@@ -109,3 +109,21 @@ export const getAllTodos = (queryParams = {}) => {
     ...queryParams
   })
 }
+
+// 管理员修改待办事项
+export const adminUpdateTodo = (todoData) => {
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  return api.put('/todo/admin/update', {
+    todoId: todoData.id,
+    title: todoData.title,
+    description: todoData.description,
+    status: todoData.status,
+    priority: todoData.priority,
+    assigneeId: todoData.assigneeId,
+    projectId: todoData.projectId,
+    startTime: formatDateForBackend(todoData.startTime),
+    dueDate: formatDateForBackend(todoData.dueDate),
+    adminId: userInfo.id,
+    updateReason: todoData.updateReason
+  })
+}

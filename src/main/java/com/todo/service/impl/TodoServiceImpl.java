@@ -6,6 +6,7 @@ import com.todo.dto.TodoUpdateDto;
 import com.todo.dto.TodoQueryDto;
 import com.todo.dto.TodoDeleteDto;
 import com.todo.dto.TodoStatusUpdateDto;
+import com.todo.dto.AdminTodoUpdateDto;
 import com.todo.dto.NotificationCreateDto;
 import com.todo.entity.Todo;
 import com.todo.entity.User;
@@ -234,6 +235,74 @@ public class TodoServiceImpl implements TodoService {
         return convertToTodoVo(updatedTodo);
     }
     
+    @Override
+    public TodoVo adminUpdateTodo(AdminTodoUpdateDto adminUpdateDto) {
+        // 验证管理员权限
+        User admin = userMapper.selectById(adminUpdateDto.getAdminId());
+        if (admin == null || !"admin".equals(admin.getAuth())) {
+            throw new RuntimeException("权限不足，只有管理员可以执行此操作");
+        }
+        
+        // 检查待办事项是否存在
+        Todo existingTodo = todoMapper.selectById(adminUpdateDto.getTodoId());
+        if (existingTodo == null) {
+            throw new RuntimeException("待办事项不存在");
+        }
+        
+        // 记录原始值用于通知
+        String originalStatus = existingTodo.getStatus();
+        Long originalAssigneeId = existingTodo.getAssigneeId();
+        
+        // 更新待办事项
+        Todo todo = new Todo();
+        todo.setId(adminUpdateDto.getTodoId());
+        
+        // 只更新非空字段
+        if (adminUpdateDto.getTitle() != null && !adminUpdateDto.getTitle().trim().isEmpty()) {
+            todo.setTitle(adminUpdateDto.getTitle());
+        }
+        if (adminUpdateDto.getDescription() != null) {
+            todo.setDescription(adminUpdateDto.getDescription());
+        }
+        if (adminUpdateDto.getStatus() != null && !adminUpdateDto.getStatus().trim().isEmpty()) {
+            todo.setStatus(adminUpdateDto.getStatus());
+        }
+        if (adminUpdateDto.getPriority() != null && !adminUpdateDto.getPriority().trim().isEmpty()) {
+            todo.setPriority(adminUpdateDto.getPriority());
+        }
+        if (adminUpdateDto.getAssigneeId() != null) {
+            todo.setAssigneeId(adminUpdateDto.getAssigneeId());
+        }
+        if (adminUpdateDto.getProjectId() != null) {
+            todo.setProjectId(adminUpdateDto.getProjectId());
+        }
+        if (adminUpdateDto.getStartTime() != null) {
+            todo.setStartTime(adminUpdateDto.getStartTime());
+        }
+        if (adminUpdateDto.getDueDate() != null) {
+            todo.setDueDate(adminUpdateDto.getDueDate());
+        }
+        
+        todo.setUpdatedTime(LocalDateTime.now());
+        
+        int result = todoMapper.updateById(todo);
+        
+        if (result <= 0) {
+            throw new RuntimeException("管理员修改待办事项失败");
+        }
+        
+        // 重新查询更新后的待办事项
+        Todo updatedTodo = todoMapper.selectById(adminUpdateDto.getTodoId());
+        
+        // 发送管理员修改通知
+        try {
+            sendAdminUpdateNotification(updatedTodo, admin, originalStatus, originalAssigneeId, adminUpdateDto.getUpdateReason());
+        } catch (Exception e) {
+            log.warn("发送管理员修改通知失败: {}", e.getMessage());
+        }
+        
+        return convertToTodoVo(updatedTodo);
+    }
 
 
     /**
@@ -401,6 +470,96 @@ public class TodoServiceImpl implements TodoService {
             todo.setDueDate(now.toLocalDate().atTime(23, 59, 59));
         } else {
             todo.setDueDate(dto.getDueDate());
+        }
+    }
+    
+    /**
+     * 发送管理员修改通知
+     */
+    private void sendAdminUpdateNotification(Todo updatedTodo, User admin, String originalStatus, Long originalAssigneeId, String updateReason) {
+        try {
+            // 构建修改内容描述
+            StringBuilder changeDescription = new StringBuilder();
+            changeDescription.append("管理员 ").append(admin.getUsername()).append(" 修改了任务 \"").append(updatedTodo.getTitle()).append("\"");
+            
+            if (updateReason != null && !updateReason.trim().isEmpty()) {
+                changeDescription.append("，修改原因：").append(updateReason);
+            }
+            
+            // 如果状态发生变化，添加状态变更描述
+            if (!updatedTodo.getStatus().equals(originalStatus)) {
+                changeDescription.append("，状态从 ").append(getStatusText(originalStatus))
+                               .append(" 变更为 ").append(getStatusText(updatedTodo.getStatus()));
+            }
+            
+            // 如果分配人发生变化，添加分配人变更描述
+            if (!java.util.Objects.equals(updatedTodo.getAssigneeId(), originalAssigneeId)) {
+                User newAssignee = null;
+                User oldAssignee = null;
+                
+                if (updatedTodo.getAssigneeId() != null) {
+                    newAssignee = userMapper.selectById(updatedTodo.getAssigneeId());
+                }
+                if (originalAssigneeId != null) {
+                    oldAssignee = userMapper.selectById(originalAssigneeId);
+                }
+                
+                changeDescription.append("，分配人从 ")
+                               .append(oldAssignee != null ? oldAssignee.getUsername() : "未分配")
+                               .append(" 变更为 ")
+                               .append(newAssignee != null ? newAssignee.getUsername() : "未分配");
+            }
+            
+            // 发送通知给当前分配人（如果存在且不是管理员本人）
+            if (updatedTodo.getAssigneeId() != null && !updatedTodo.getAssigneeId().equals(admin.getId())) {
+                NotificationCreateDto assigneeNotification = new NotificationCreateDto();
+                assigneeNotification.setTitle("任务被管理员修改");
+                assigneeNotification.setContent(changeDescription.toString());
+                assigneeNotification.setType("personal");
+                assigneeNotification.setPriority("high");
+                assigneeNotification.setReceiverId(updatedTodo.getAssigneeId());
+                assigneeNotification.setProjectId(updatedTodo.getProjectId());
+                assigneeNotification.setPushImmediately(true);
+                
+                notificationService.createPersonalNotification(assigneeNotification, admin.getId(), admin.getUsername());
+                log.info("已向分配人发送管理员修改通知，任务：{}", updatedTodo.getTitle());
+            }
+            
+            // 如果原分配人发生变化且原分配人不是当前分配人和管理员，也发送通知
+            if (originalAssigneeId != null && !originalAssigneeId.equals(admin.getId()) 
+                && !java.util.Objects.equals(originalAssigneeId, updatedTodo.getAssigneeId())) {
+                NotificationCreateDto originalAssigneeNotification = new NotificationCreateDto();
+                originalAssigneeNotification.setTitle("您的任务被重新分配");
+                originalAssigneeNotification.setContent("任务 \"" + updatedTodo.getTitle() + "\" 已被管理员重新分配");
+                originalAssigneeNotification.setType("personal");
+                originalAssigneeNotification.setPriority("normal");
+                originalAssigneeNotification.setReceiverId(originalAssigneeId);
+                originalAssigneeNotification.setProjectId(updatedTodo.getProjectId());
+                originalAssigneeNotification.setPushImmediately(true);
+                
+                notificationService.createPersonalNotification(originalAssigneeNotification, admin.getId(), admin.getUsername());
+                log.info("已向原分配人发送任务重新分配通知，任务：{}", updatedTodo.getTitle());
+            }
+            
+            // 如果任务属于某个项目，发送项目通知
+            if (updatedTodo.getProjectId() != null) {
+                Project project = projectMapper.selectById(updatedTodo.getProjectId());
+                if (project != null) {
+                    NotificationCreateDto projectNotification = new NotificationCreateDto();
+                    projectNotification.setTitle("项目任务被管理员修改");
+                    projectNotification.setContent("项目 " + project.getProjectName() + " 中的" + changeDescription.toString());
+                    projectNotification.setType("project");
+                    projectNotification.setPriority("normal");
+                    projectNotification.setProjectId(updatedTodo.getProjectId());
+                    projectNotification.setPushImmediately(true);
+                    
+                    notificationService.createProjectNotification(projectNotification, admin.getId(), admin.getUsername());
+                    log.info("已发送项目任务修改通知，项目：{}，任务：{}", project.getProjectName(), updatedTodo.getTitle());
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("发送管理员修改通知失败：{}", e.getMessage(), e);
         }
     }
     
