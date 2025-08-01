@@ -111,6 +111,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="assigneeName" label="分配给" width="120" />
+        <el-table-column prop="startTime" label="开始时间" width="180">
+          <template #default="scope">
+            {{ scope.row.startTime ? formatDate(scope.row.startTime) : '无' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="dueDate" label="截止日期" width="180">
           <template #default="scope">
             {{ scope.row.dueDate ? formatDate(scope.row.dueDate) : '无' }}
@@ -193,11 +198,20 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="开始时间">
+          <el-date-picker
+            v-model="todoForm.startTime"
+            type="datetime"
+            placeholder="选择开始时间（默认今天9:00）"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
+        </el-form-item>
         <el-form-item label="截止日期">
           <el-date-picker
             v-model="todoForm.dueDate"
             type="datetime"
-            placeholder="选择截止日期"
+            placeholder="选择截止日期（默认今天23:59）"
             format="YYYY-MM-DD HH:mm:ss"
             value-format="YYYY-MM-DD HH:mm:ss"
           />
@@ -287,6 +301,7 @@ export default {
       description: '',
       priority: 'medium',
       assigneeId: null,
+      startTime: null,
       dueDate: null,
       projectId: parseInt(projectId)
     })
@@ -334,6 +349,7 @@ export default {
             description: '',
             priority: 'medium',
             assigneeId: null,
+            startTime: null,
             dueDate: null,
             projectId: parseInt(projectId)
           }

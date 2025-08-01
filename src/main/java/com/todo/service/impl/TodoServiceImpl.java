@@ -25,6 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 待办事项服务实现类
+ */
 @Slf4j
 @Service
 public class TodoServiceImpl implements TodoService {
@@ -36,10 +39,10 @@ public class TodoServiceImpl implements TodoService {
     private UserMapper userMapper;
     
     @Autowired
-    private ProjectMapper projectMapper;
+    private NotificationService notificationService;
     
     @Autowired
-    private NotificationService notificationService;
+    private ProjectMapper projectMapper;
     
     @Override
     public TodoVo createTodo(TodoCreateDto todoCreateDto) {
@@ -52,6 +55,10 @@ public class TodoServiceImpl implements TodoService {
         BeanUtils.copyProperties(todoCreateDto, todo);
         todo.setCreatorId(todoCreateDto.getUserId());
         todo.setStatus("pending"); // 默认状态为待处理
+        
+        // 设置默认开始时间和截止时间
+        setDefaultTimes(todo, todoCreateDto);
+        
         todo.setCreatedTime(LocalDateTime.now());
         todo.setUpdatedTime(LocalDateTime.now());
         
@@ -124,27 +131,40 @@ public class TodoServiceImpl implements TodoService {
     
     @Override
     public List<TodoVo> getTodoList(TodoQueryDto queryDto) {
-        // 根据查询条件返回不同的待办事项列表
-        if (queryDto.getProjectId() != null) {
-            // 根据项目ID查询
-            return todoMapper.getTodosByProjectId(queryDto.getProjectId());
-        } else if (queryDto.getAssigneeId() != null) {
-            // 根据分配人ID查询
-            return todoMapper.getTodosByAssigneeId(queryDto.getAssigneeId());
-        } else if ("admin".equals(queryDto.getUserAuth())) {
-            // 管理员可以查看所有待办事项
-            QueryWrapper<Todo> queryWrapper = new QueryWrapper<>();
-            if (queryDto.getStatus() != null) {
-                queryWrapper.eq("status", queryDto.getStatus());
-            }
-            List<Todo> todos = todoMapper.selectList(queryWrapper);
-            return todos.stream()
-                       .map(this::convertToTodoVo)
-                       .collect(java.util.stream.Collectors.toList());
-        } else {
+        // 构建基础查询条件
+        QueryWrapper<Todo> queryWrapper = new QueryWrapper<>();
+        
+        // 根据权限设置查询范围
+        if (!"admin".equals(queryDto.getUserAuth())) {
             // 普通用户只能查看分配给自己的待办事项
-            return todoMapper.getTodosByAssigneeId(queryDto.getUserId());
+            queryWrapper.eq("assignee_id", queryDto.getUserId());
         }
+        
+        // 项目ID过滤
+        if (queryDto.getProjectId() != null) {
+            queryWrapper.eq("project_id", queryDto.getProjectId());
+        }
+        
+        // 分配人ID过滤（管理员可以指定查看特定用户的任务）
+        if (queryDto.getAssigneeId() != null && "admin".equals(queryDto.getUserAuth())) {
+            queryWrapper.eq("assignee_id", queryDto.getAssigneeId());
+        }
+        
+        // 状态过滤
+        if (queryDto.getStatus() != null) {
+            queryWrapper.eq("status", queryDto.getStatus());
+        }
+        
+        // 日期过滤逻辑
+        addDateFilter(queryWrapper, queryDto);
+        
+        // 按开始时间排序
+        queryWrapper.orderByAsc("start_time", "created_time");
+        
+        List<Todo> todos = todoMapper.selectList(queryWrapper);
+        return todos.stream()
+                   .map(this::convertToTodoVo)
+                   .collect(java.util.stream.Collectors.toList());
     }
     
     @Override
@@ -203,6 +223,14 @@ public class TodoServiceImpl implements TodoService {
         
         // 重新查询并转换为VO对象
         Todo updatedTodo = todoMapper.selectById(statusUpdateDto.getTodoId());
+        
+        // 发送任务状态变更通知给管理员
+        try {
+            sendTaskStatusChangeNotification(updatedTodo, statusUpdateDto.getUserId());
+        } catch (Exception e) {
+            log.warn("发送任务状态变更通知失败: {}", e.getMessage());
+        }
+        
         return convertToTodoVo(updatedTodo);
     }
     
@@ -272,5 +300,139 @@ public class TodoServiceImpl implements TodoService {
         } catch (Exception e) {
             log.error("发送待办创建通知失败：{}", e.getMessage(), e);
         }
+    }
+    
+    /**
+     * 发送任务状态变更通知
+     */
+    private void sendTaskStatusChangeNotification(Todo todo, Long operatorUserId) {
+        try {
+            // 获取操作用户信息
+            User operator = userMapper.selectById(operatorUserId);
+            if (operator == null) {
+                log.warn("操作用户不存在，ID: {}", operatorUserId);
+                return;
+            }
+            
+            // 获取任务分配者信息
+            User assignee = null;
+            if (todo.getAssigneeId() != null) {
+                assignee = userMapper.selectById(todo.getAssigneeId());
+            }
+            
+            // 查询所有管理员
+            List<User> adminUsers = getAllAdminUsers();
+            if (adminUsers.isEmpty()) {
+                log.warn("没有找到管理员用户");
+                return;
+            }
+            
+            // 构建通知内容
+            String statusText = getStatusText(todo.getStatus());
+            String operatorName = operator.getUsername();
+            String todoTitle = todo.getTitle();
+            
+            String notificationContent = String.format("%s将%s任务切换为%s状态", 
+                operatorName, todoTitle, statusText);
+            
+            // 为每个管理员发送个人通知
+            for (User admin : adminUsers) {
+                NotificationCreateDto notificationDto = new NotificationCreateDto();
+                notificationDto.setTitle("任务状态变更通知");
+                notificationDto.setContent(notificationContent);
+                notificationDto.setType("personal");
+                notificationDto.setPriority("normal");
+                notificationDto.setReceiverId(admin.getId());
+                notificationDto.setPushImmediately(true);
+                
+                // 发送个人通知
+                notificationService.createPersonalNotification(notificationDto, 
+                    operatorUserId, operatorName);
+                
+                log.info("已向管理员 {} 发送任务状态变更通知: {}", 
+                    admin.getUsername(), notificationContent);
+            }
+            
+        } catch (Exception e) {
+            log.error("发送任务状态变更通知失败：{}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 获取所有管理员用户
+     */
+    private List<User> getAllAdminUsers() {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("auth", "admin");
+        return userMapper.selectList(queryWrapper);
+    }
+    
+    /**
+     * 获取状态的中文描述
+     */
+    private String getStatusText(String status) {
+        switch (status) {
+            case "pending":
+                return "待处理";
+            case "in_progress":
+                return "进行中";
+            case "completed":
+                return "已完成";
+            default:
+                return status;
+        }
+    }
+    
+    /**
+     * 设置默认的开始时间和截止时间
+     */
+    private void setDefaultTimes(Todo todo, TodoCreateDto dto) {
+        LocalDateTime now = LocalDateTime.now();
+        
+        // 设置开始时间：如果没有指定，默认为当天9:00
+        if (dto.getStartTime() == null) {
+            todo.setStartTime(now.toLocalDate().atTime(9, 0, 0));
+        } else {
+            todo.setStartTime(dto.getStartTime());
+        }
+        
+        // 设置截止时间：如果没有指定，默认为当天23:59
+        if (dto.getDueDate() == null) {
+            todo.setDueDate(now.toLocalDate().atTime(23, 59, 59));
+        } else {
+            todo.setDueDate(dto.getDueDate());
+        }
+    }
+    
+    /**
+     * 添加日期过滤条件
+     */
+    private void addDateFilter(QueryWrapper<Todo> queryWrapper, TodoQueryDto queryDto) {
+        java.time.LocalDate targetDate;
+        
+        // 确定查询日期
+        if (queryDto.getQueryDate() != null) {
+            targetDate = queryDto.getQueryDate();
+        } else {
+            // 默认查询今天的数据
+            targetDate = java.time.LocalDate.now();
+        }
+        
+        // 如果不包括历史数据，则按日期过滤
+        if (queryDto.getIncludeHistory() == null || !queryDto.getIncludeHistory()) {
+            // 查询指定日期的待办事项
+            // 开始时间在指定日期，或者截止时间在指定日期，或者跨越指定日期的任务
+            LocalDateTime dayStart = targetDate.atStartOfDay();
+            LocalDateTime dayEnd = targetDate.atTime(23, 59, 59);
+            
+            queryWrapper.and(wrapper -> 
+                wrapper.between("start_time", dayStart, dayEnd)
+                       .or()
+                       .between("due_date", dayStart, dayEnd)
+                       .or()
+                       .and(w -> w.le("start_time", dayStart).ge("due_date", dayEnd))
+            );
+        }
+        // 如果包括历史数据，则不添加日期过滤条件，显示所有数据
     }
 }

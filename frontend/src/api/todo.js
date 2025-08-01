@@ -9,22 +9,23 @@ const api = axios.create({
 
 // 创建待办事项
 export const createTodo = (data) => {
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
   return api.post('/todo/create', {
     title: data.title,
     description: data.description,
     priority: data.priority,
     projectId: data.projectId,
     assigneeId: data.assigneeId,
-    dueDate: formatDateForBackend(data.dueDate)
-  }, {
-    headers: {
-      'userId': JSON.parse(localStorage.getItem('userInfo') || '{}').id
-    }
+    startTime: formatDateForBackend(data.startTime),
+    dueDate: formatDateForBackend(data.dueDate),
+    userId: userInfo.id,
+    userAuth: userInfo.auth
   })
 }
 
 // 更新待办事项
 export const updateTodo = (data) => {
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
   return api.put('/todo/update', {
     id: data.id,
     title: data.title,
@@ -32,13 +33,44 @@ export const updateTodo = (data) => {
     status: data.status,
     priority: data.priority,
     assigneeId: data.assigneeId,
-    dueDate: formatDateForBackend(data.dueDate)
+    startTime: formatDateForBackend(data.startTime),
+    dueDate: formatDateForBackend(data.dueDate),
+    userId: userInfo.id,
+    userAuth: userInfo.auth
   })
 }
 
 // 删除待办事项
 export const deleteTodo = (todoId) => {
   return api.delete(`/todo/${todoId}`)
+}
+
+// 根据日期获取待办列表
+export const getTodosByDate = (date = 'today', options = {}) => {
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  const params = new URLSearchParams()
+  
+  if (options.includeHistory !== undefined) {
+    params.append('includeHistory', options.includeHistory)
+  }
+  if (options.projectId) {
+    params.append('projectId', options.projectId)
+  }
+  if (options.assigneeId) {
+    params.append('assigneeId', options.assigneeId)
+  }
+  if (options.status) {
+    params.append('status', options.status)
+  }
+  
+  const url = `/todo/date/${date}${params.toString() ? '?' + params.toString() : ''}`
+  
+  return api.get(url, {
+    headers: {
+      'userId': userInfo.id,
+      'userAuth': userInfo.auth
+    }
+  })
 }
 
 // 获取待办列表 - 根据项目ID

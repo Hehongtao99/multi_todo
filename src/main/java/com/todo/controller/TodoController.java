@@ -183,4 +183,39 @@ public class TodoController {
             return Result.error(e.getMessage());
         }
     }
+
+    /**
+     * 根据日期获取待办列表 (GET接口)
+     */
+    @GetMapping("/date/{date}")
+    public Result<List<TodoVo>> getTodosByDate(
+            @PathVariable String date,
+            @RequestParam(value = "includeHistory", defaultValue = "false") Boolean includeHistory,
+            @RequestParam(value = "projectId", required = false) Long projectId,
+            @RequestParam(value = "assigneeId", required = false) Long assigneeId,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestHeader(value = "userId", required = false) Long userId,
+            @RequestHeader(value = "userAuth", required = false) String userAuth) {
+        try {
+            TodoQueryDto queryDto = new TodoQueryDto();
+            queryDto.setUserId(userId);
+            queryDto.setUserAuth(userAuth != null ? userAuth : "admin"); // 默认admin权限
+            
+            // 解析日期
+            if (!"today".equals(date)) {
+                queryDto.setQueryDate(java.time.LocalDate.parse(date));
+            }
+            // 如果是"today"，则queryDate保持null，会默认使用今天
+            
+            queryDto.setIncludeHistory(includeHistory);
+            queryDto.setProjectId(projectId);
+            queryDto.setAssigneeId(assigneeId);
+            queryDto.setStatus(status);
+            
+            List<TodoVo> todos = todoService.getTodoList(queryDto);
+            return Result.success(todos);
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
 }

@@ -50,6 +50,23 @@
           <el-option label="中" value="medium" />
           <el-option label="低" value="low" />
         </el-select>
+        <el-date-picker
+          v-model="filters.queryDate"
+          type="date"
+          placeholder="选择日期"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          @change="loadTodos"
+          clearable
+          class="filter-select"
+        />
+        <el-switch
+          v-model="filters.includeHistory"
+          @change="loadTodos"
+          active-text="显示历史"
+          inactive-text="仅今日"
+          class="history-switch"
+        />
         <el-input
           v-model="filters.keyword"
           placeholder="搜索任务..."
@@ -142,24 +159,29 @@
                     </div>
                   </div>
                   <div class="card-title">{{ todo.title }}</div>
-                  <div class="card-meta">
-                    <div class="meta-item">
-                      <span class="meta-label">项目</span>
-                      <span class="meta-value">{{ todo.projectName || '未分配' }}</span>
+                  <div class="card-description">
+                    {{ todo.description || '暂无描述' }}
+                  </div>
+                  <div class="card-times">
+                    <div class="time-item">
+                      <span class="time-icon">📅</span>
+                      <span class="time-label">开始</span>
+                      <span class="time-value">{{ todo.startTime ? formatShortDateTime(todo.startTime) : '未设置' }}</span>
                     </div>
-                    <div class="meta-item">
-                      <span class="meta-label">负责人</span>
-                      <span class="meta-value">{{ todo.assigneeName || '未分配' }}</span>
+                    <div class="time-item">
+                      <span class="time-icon">⏰</span>
+                      <span class="time-label">结束</span>
+                      <span class="time-value">{{ todo.dueDate ? formatShortDateTime(todo.dueDate) : '未设置' }}</span>
                     </div>
                   </div>
-                  <div class="card-timeline" v-if="todo.dueDate">
-                    <div class="timeline-item">
-                      <span class="timeline-icon">📅</span>
-                      <span class="timeline-text">{{ formatShortDate(todo.dueDate) }}</span>
-                      <span class="timeline-status" :class="getTimelineStatus(todo.dueDate)">
-                        {{ getTimelineText(todo.dueDate) }}
-                      </span>
-                    </div>
+                  <div class="card-priority-badge">
+                    <el-tag 
+                      :type="getPriorityType(todo.priority)" 
+                      size="small"
+                      effect="plain"
+                    >
+                      {{ getPriorityText(todo.priority) }}优先级
+                    </el-tag>
                   </div>
                 </div>
               </template>
@@ -248,24 +270,29 @@
                     </div>
                   </div>
                   <div class="card-title">{{ todo.title }}</div>
-                  <div class="card-meta">
-                    <div class="meta-item">
-                      <span class="meta-label">项目</span>
-                      <span class="meta-value">{{ todo.projectName || '未分配' }}</span>
+                  <div class="card-description">
+                    {{ todo.description || '暂无描述' }}
+                  </div>
+                  <div class="card-times">
+                    <div class="time-item">
+                      <span class="time-icon">📅</span>
+                      <span class="time-label">开始</span>
+                      <span class="time-value">{{ todo.startTime ? formatShortDateTime(todo.startTime) : '未设置' }}</span>
                     </div>
-                    <div class="meta-item">
-                      <span class="meta-label">负责人</span>
-                      <span class="meta-value">{{ todo.assigneeName || '未分配' }}</span>
+                    <div class="time-item">
+                      <span class="time-icon">⏰</span>
+                      <span class="time-label">结束</span>
+                      <span class="time-value">{{ todo.dueDate ? formatShortDateTime(todo.dueDate) : '未设置' }}</span>
                     </div>
                   </div>
-                  <div class="card-timeline" v-if="todo.dueDate">
-                    <div class="timeline-item">
-                      <span class="timeline-icon">📅</span>
-                      <span class="timeline-text">{{ formatShortDate(todo.dueDate) }}</span>
-                      <span class="timeline-status" :class="getTimelineStatus(todo.dueDate)">
-                        {{ getTimelineText(todo.dueDate) }}
-                      </span>
-                    </div>
+                  <div class="card-priority-badge">
+                    <el-tag 
+                      :type="getPriorityType(todo.priority)" 
+                      size="small"
+                      effect="plain"
+                    >
+                      {{ getPriorityText(todo.priority) }}优先级
+                    </el-tag>
                   </div>
                   <div class="progress-indicator">
                     <div class="progress-bar">
@@ -347,22 +374,29 @@
                     </div>
                   </div>
                   <div class="card-title completed-title">{{ todo.title }}</div>
-                  <div class="card-meta">
-                    <div class="meta-item">
-                      <span class="meta-label">项目</span>
-                      <span class="meta-value">{{ todo.projectName || '未分配' }}</span>
+                  <div class="card-description">
+                    {{ todo.description || '暂无描述' }}
+                  </div>
+                  <div class="card-times">
+                    <div class="time-item">
+                      <span class="time-icon">📅</span>
+                      <span class="time-label">开始</span>
+                      <span class="time-value">{{ todo.startTime ? formatShortDateTime(todo.startTime) : '未设置' }}</span>
                     </div>
-                    <div class="meta-item">
-                      <span class="meta-label">负责人</span>
-                      <span class="meta-value">{{ todo.assigneeName || '未分配' }}</span>
+                    <div class="time-item">
+                      <span class="time-icon">⏰</span>
+                      <span class="time-label">结束</span>
+                      <span class="time-value">{{ todo.dueDate ? formatShortDateTime(todo.dueDate) : '未设置' }}</span>
                     </div>
                   </div>
-                  <div class="card-timeline" v-if="todo.dueDate">
-                    <div class="timeline-item">
-                      <span class="timeline-icon">✅</span>
-                      <span class="timeline-text">{{ formatShortDate(todo.dueDate) }}</span>
-                      <span class="timeline-status completed">已完成</span>
-                    </div>
+                  <div class="card-priority-badge">
+                    <el-tag 
+                      :type="getPriorityType(todo.priority)" 
+                      size="small"
+                      effect="plain"
+                    >
+                      {{ getPriorityText(todo.priority) }}优先级
+                    </el-tag>
                   </div>
                 </div>
               </template>
@@ -435,11 +469,25 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="开始时间" prop="startTime">
+              <el-date-picker
+                v-model="todoForm.startTime"
+                type="datetime"
+                placeholder="选择开始时间（默认今天9:00）"
+                format="YYYY-MM-DD HH:mm"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
             <el-form-item label="截止日期" prop="dueDate">
               <el-date-picker
                 v-model="todoForm.dueDate"
                 type="datetime"
-                placeholder="选择截止日期"
+                placeholder="选择截止日期（默认今天23:59）"
                 format="YYYY-MM-DD HH:mm"
                 value-format="YYYY-MM-DD HH:mm:ss"
                 style="width: 100%"
@@ -546,7 +594,8 @@ import {
   getTodosByAssigneeId,
   getTodoDetail,
   updateTodoStatus,
-  getAllTodos
+  getAllTodos,
+  getTodosByDate
 } from '../api/todo'
 import { getProjectList } from '../api/project'
 import { getUserList } from '../api/user'
@@ -575,7 +624,9 @@ export default {
       status: '',
       priority: '',
       projectId: '',
-      keyword: ''
+      keyword: '',
+      queryDate: null,
+      includeHistory: false
     })
     
     // 对话框状态
@@ -591,6 +642,7 @@ export default {
       priority: 'medium',
       projectId: '',
       assigneeId: '',
+      startTime: '',
       dueDate: ''
     })
     
@@ -767,27 +819,38 @@ export default {
       loading.value = true
       try {
         let response
-        if (filters.projectId) {
-          response = await getTodosByProjectId(filters.projectId)
-        } else if (userInfo.value.auth === 'admin') {
-          // 管理员可以看到所有待办事项
-          response = await getAllTodos({
-            status: filters.status,
-            priority: filters.priority
-          })
+        
+        // 使用新的按日期查询API
+        const dateStr = filters.queryDate || 'today'
+        const options = {
+          includeHistory: filters.includeHistory,
+          projectId: filters.projectId,
+          status: filters.status
+        }
+        
+        // 如果是管理员且没有指定分配人，则查询所有任务
+        if (userInfo.value.auth === 'admin') {
+          // 管理员可以看到所有待办事项或特定分配人的任务
+          response = await getTodosByDate(dateStr, options)
         } else {
-          response = await getTodosByAssigneeId(userInfo.value.id)
+          // 普通用户只能看到分配给自己的任务
+          options.assigneeId = userInfo.value.id
+          response = await getTodosByDate(dateStr, options)
         }
 
         let todoList = response.data.data || []
 
-        // 应用前端筛选条件（关键词搜索）
+        // 应用前端筛选条件（关键词搜索和优先级）
         if (filters.keyword) {
           const keyword = filters.keyword.toLowerCase()
           todoList = todoList.filter(todo =>
             todo.title.toLowerCase().includes(keyword) ||
             (todo.description && todo.description.toLowerCase().includes(keyword))
           )
+        }
+        
+        if (filters.priority) {
+          todoList = todoList.filter(todo => todo.priority === filters.priority)
         }
 
         todos.value = todoList
@@ -875,6 +938,17 @@ export default {
       if (diffDays < 0 && diffDays >= -7) return `${Math.abs(diffDays)}天前`
       
       return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+    }
+
+    // 格式化短日期时间
+    const formatShortDateTime = (dateString) => {
+      if (!dateString) return ''
+      const date = new Date(dateString)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      
+      return `${year}-${month}-${day}`
     }
 
     // 获取时间轴状态
@@ -1049,6 +1123,7 @@ export default {
         priority: 'medium',
         projectId: '',
         assigneeId: '',
+        startTime: '',
         dueDate: ''
       })
       if (todoFormRef.value) {
@@ -1088,6 +1163,7 @@ export default {
       getStatusCount,
       formatDate,
       formatShortDate,
+      formatShortDateTime,
       getTimelineStatus,
       getTimelineText,
       loadTodos,
@@ -1301,7 +1377,7 @@ export default {
 .draggable-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-height: 100px;
 }
 
@@ -1309,7 +1385,7 @@ export default {
 .todo-card {
   background: white;
   border-radius: 6px;
-  padding: 16px;
+  padding: 12px;
   border: 1px solid #e5e7eb;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1359,7 +1435,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .card-priority {
@@ -1429,9 +1505,9 @@ export default {
 .card-title {
   font-weight: 500;
   color: #1f2937;
-  margin-bottom: 12px;
-  line-height: 1.4;
-  font-size: 14px;
+  margin-bottom: 8px;
+  line-height: 1.3;
+  font-size: 13px;
 }
 
 .card-title.completed-title {
@@ -1513,6 +1589,66 @@ export default {
 .timeline-status.completed {
   background: #d1fae5;
   color: #059669;
+}
+
+/* 新卡片样式 */
+.card-description {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 32px;
+}
+
+.card-times {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: #f9fafb;
+  border-radius: 3px;
+}
+
+.time-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.time-icon {
+  font-size: 12px;
+  min-width: 14px;
+}
+
+.time-label {
+  color: #6b7280;
+  min-width: 30px;
+  font-size: 10px;
+}
+
+.time-value {
+  color: #374151;
+  font-weight: 500;
+  flex: 1;
+  font-size: 11px;
+}
+
+.card-priority-badge {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.card-priority-badge .el-tag {
+  font-size: 10px;
+  padding: 1px 4px;
+  height: 18px;
 }
 
 /* 进度指示器 */
@@ -1663,9 +1799,10 @@ export default {
   }
   
   .filter-select,
-  .search-input {
-    width: 100%;
-  }
+.search-input,
+.history-switch {
+  width: 100%;
+}
   
   .kanban-header {
     flex-direction: column;

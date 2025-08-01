@@ -19,6 +19,8 @@ public class TodoUpdateDto {
     
     private Long assigneeId;
     
+    private LocalDateTime startTime;
+    
     private LocalDateTime dueDate;
     
     /**

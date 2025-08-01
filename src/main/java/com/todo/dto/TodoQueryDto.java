@@ -1,6 +1,7 @@
 package com.todo.dto;
 
 import lombok.Data;
+import java.time.LocalDate;
 
 /**
  * 待办事项查询DTO
@@ -37,4 +38,14 @@ public class TodoQueryDto {
      * 状态过滤（可选）
      */
     private String status;
+    
+    /**
+     * 查询日期（可选，默认为今天）
+     */
+    private LocalDate queryDate;
+    
+    /**
+     * 是否查询历史数据（默认false，只查询今天的）
+     */
+    private Boolean includeHistory;
 } 

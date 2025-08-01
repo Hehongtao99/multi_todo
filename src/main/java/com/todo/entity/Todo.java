@@ -28,6 +28,8 @@ public class Todo {
 
     private Long creatorId;
 
+    private LocalDateTime startTime;
+    
     private LocalDateTime dueDate;
 
     private LocalDateTime createdTime;

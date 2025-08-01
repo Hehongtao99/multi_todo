@@ -17,6 +17,8 @@ public class TodoCreateDto {
     
     private Long assigneeId;
     
+    private LocalDateTime startTime;
+    
     private LocalDateTime dueDate;
     
     /**
