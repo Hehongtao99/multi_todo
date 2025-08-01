@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.todo.mapper.ChatMessageMapper">
+    
+    <!-- 获取两个用户之间的聊天记录 -->
+    <select id="getChatHistory" resultType="com.todo.vo.ChatMessageVo">
+        SELECT 
+            cm.id,
+            cm.sender_id as senderId,
+            us.username as senderName,
+            cm.receiver_id as receiverId,
+            ur.username as receiverName,
+            cm.content,
+            cm.message_type as messageType,
+            cm.is_read as isRead,
+            cm.created_time as createdTime
+        FROM chat_message cm
+        LEFT JOIN users us ON cm.sender_id = us.id
+        LEFT JOIN users ur ON cm.receiver_id = ur.id
+        WHERE (cm.sender_id = #{userId1} AND cm.receiver_id = #{userId2})
+           OR (cm.sender_id = #{userId2} AND cm.receiver_id = #{userId1})
+        ORDER BY cm.created_time ASC
+        LIMIT #{offset}, #{size}
+    </select>
+    
+    <!-- 获取用户的聊天联系人列表 -->
+    <select id="getChatContacts" resultType="com.todo.vo.ChatContactVo">
+        SELECT 
+            u.id as userId,
+            u.username,
+            latest.content as lastMessage,
+            latest.created_time as lastMessageTime,
+            COALESCE(unread.unread_count, 0) as unreadCount,
+            'offline' as onlineStatus
+        FROM users u
+        LEFT JOIN (
+            SELECT 
+                CASE 
+                    WHEN sender_id = #{userId} THEN receiver_id
+                    ELSE sender_id
+                END as contact_id,
+                content,
+                created_time,
+                ROW_NUMBER() OVER (PARTITION BY CASE WHEN sender_id = #{userId} THEN receiver_id ELSE sender_id END ORDER BY created_time DESC) as rn
+            FROM chat_message 
+            WHERE sender_id = #{userId} OR receiver_id = #{userId}
+        ) latest ON u.id = latest.contact_id AND latest.rn = 1
+        LEFT JOIN (
+            SELECT 
+                sender_id as contact_id,
+                COUNT(*) as unread_count
+            FROM chat_message 
+            WHERE receiver_id = #{userId} AND is_read = false
+            GROUP BY sender_id
+        ) unread ON u.id = unread.contact_id
+        WHERE 
+        <choose>
+            <when test="userAuth == 'admin'">
+                u.auth = 'user'
+            </when>
+            <otherwise>
+                u.auth = 'admin'
+            </otherwise>
+        </choose>
+        AND u.id != #{userId}
+        ORDER BY latest.created_time DESC NULLS LAST, u.username ASC
+    </select>
+    
+    <!-- 标记消息为已读 -->
+    <update id="markMessagesAsRead">
+        UPDATE chat_message 
+        SET is_read = true, updated_time = NOW()
+        WHERE receiver_id = #{userId} AND sender_id = #{chatUserId} AND is_read = false
+    </update>
+    
+    <!-- 获取用户与特定用户的未读消息数量 -->
+    <select id="getUnreadMessageCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM chat_message
+        WHERE receiver_id = #{userId} AND sender_id = #{chatUserId} AND is_read = false
+    </select>
+    
+    <!-- 获取用户总未读消息数量 -->
+    <select id="getTotalUnreadMessageCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM chat_message
+        WHERE receiver_id = #{userId} AND is_read = false
+    </select>
+    
+</mapper> 

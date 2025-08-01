@@ -1,12 +1,15 @@
 package com.todo.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.todo.dto.LoginDto;
+import com.todo.dto.ProfileUpdateDto;
 import com.todo.dto.RegisterDto;
 import com.todo.dto.UserListQueryDto;
 import com.todo.entity.User;
 import com.todo.mapper.UserMapper;
 import com.todo.service.UserService;
+import com.todo.vo.ProfileVo;
 import com.todo.vo.UserVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,13 +77,15 @@ public class UserServiceImpl implements UserService {
     
     @Override
     public List<UserVo> getUserList(UserListQueryDto queryDto) {
-        // 权限验证：检查是否有权限查看用户列表
-        if (!"admin".equals(queryDto.getUserAuth())) {
-            throw new RuntimeException("权限不足，只有管理员可以查看用户列表");
-        }
-        
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("auth", "user");
+        
+        if ("admin".equals(queryDto.getUserAuth())) {
+            // 管理员可以查看所有普通用户
+            queryWrapper.eq("auth", "user");
+        } else {
+            // 普通用户可以查看所有管理员
+            queryWrapper.eq("auth", "admin");
+        }
         
         List<User> users = userMapper.selectList(queryWrapper);
         
@@ -98,5 +103,43 @@ public class UserServiceImpl implements UserService {
         BeanUtils.copyProperties(user, userVo);
         // 不返回密码等敏感信息
         return userVo;
+    }
+    
+    @Override
+    public ProfileVo getProfile(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        
+        ProfileVo profileVo = new ProfileVo();
+        BeanUtils.copyProperties(user, profileVo);
+        return profileVo;
+    }
+    
+    @Override
+    public void updateProfile(ProfileUpdateDto dto) {
+        if (dto.getUserId() == null) {
+            throw new RuntimeException("用户ID不能为空");
+        }
+        
+        User user = userMapper.selectById(dto.getUserId());
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        
+        // 更新用户信息
+        UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", dto.getUserId());
+        
+        User updateUser = new User();
+        updateUser.setRealName(dto.getRealName());
+        updateUser.setAvatar(dto.getAvatar());
+        updateUser.setUpdatedTime(LocalDateTime.now());
+        
+        int result = userMapper.update(updateUser, updateWrapper);
+        if (result == 0) {
+            throw new RuntimeException("更新个人信息失败");
+        }
     }
 } 

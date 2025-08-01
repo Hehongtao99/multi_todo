@@ -20,6 +20,16 @@ public class User {
 
     private String auth;
 
+    /**
+     * 真实姓名
+     */
+    private String realName;
+
+    /**
+     * 头像URL
+     */
+    private String avatar;
+
     private LocalDateTime createdTime;
 
     private LocalDateTime updatedTime;

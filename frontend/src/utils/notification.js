@@ -8,7 +8,7 @@ class NotificationUtil {
     this.permission = null
     this.isElectron = this.checkElectronEnvironment()
     this.recentNotifications = new Map() // 用于去重的通知记录
-    this.init()
+    // 不在构造函数中调用init()，避免自动请求权限
   }
 
   /**
@@ -29,8 +29,17 @@ class NotificationUtil {
       this.permission = 'granted'
       return true
     } else {
-      // 浏览器环境下，请求通知权限
-      return await this.requestPermission()
+      // 浏览器环境下，检查通知权限但不主动请求
+      if (Notification.permission === 'granted') {
+        this.permission = 'granted'
+        return true
+      } else if (Notification.permission === 'denied') {
+        this.permission = 'denied'
+        return false
+      } else {
+        this.permission = 'default'
+        return false
+      }
     }
   }
 

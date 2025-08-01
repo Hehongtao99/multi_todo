@@ -12,6 +12,8 @@ class WebSocketService {
     this.reconnectAttempts = 0
     this.maxReconnectAttempts = 5
     this.subscriptions = new Map() // 存储订阅引用，用于取消订阅
+    this.statusInterval = null // 状态发送定时器
+    this.lastStatusRequest = 0 // 上次状态请求时间
   }
 
   /**
@@ -35,6 +37,17 @@ class WebSocketService {
           this.connected = true
           this.reconnectAttempts = 0
           this.subscribeToTopics()
+          
+          // 立即发送用户在线状态
+          this.sendUserStatus('online')
+          
+          // 延迟请求其他用户状态，确保订阅已完成
+          setTimeout(() => {
+            this.requestOnlineUserStatus()
+            // 启动定期状态发送
+            this.startStatusHeartbeat()
+          }, 500)
+          
           resolve(frame)
         },
         onStompError: (frame) => {
@@ -76,6 +89,12 @@ class WebSocketService {
    */
   disconnect() {
     if (this.client && this.connected) {
+      // 停止状态心跳
+      this.stopStatusHeartbeat()
+      
+      // 发送用户离线状态
+      this.sendUserStatus('offline')
+      
       // 离开当前项目
       if (this.currentProject) {
         this.leaveProject()
@@ -259,8 +278,46 @@ class WebSocketService {
       timestamp: Date.now()
     }
 
+    // 立即发布状态更新
     this.client.publish({
       destination: '/app/user.status',
+      body: JSON.stringify(message)
+    })
+    
+    // 立即触发本地状态更新事件
+    window.dispatchEvent(new CustomEvent('userStatusChange', {
+      detail: {
+        userId: this.currentUser.id,
+        status: status,
+        immediate: true
+      }
+    }))
+    
+    console.log(`发送用户状态：${this.currentUser.id} -> ${status}`)
+  }
+
+  /**
+   * 发送用户头像更新消息
+   */
+  sendUserAvatarUpdate(avatarUrl, realName) {
+    if (!this.client || !this.connected || !this.currentUser) {
+      console.error('WebSocket未连接或用户信息缺失')
+      return
+    }
+
+    const message = {
+      type: 'USER_AVATAR_UPDATE',
+      content: { 
+        avatar: avatarUrl,
+        realName: realName
+      },
+      senderId: this.currentUser.id,
+      senderName: this.currentUser.username,
+      timestamp: Date.now()
+    }
+
+    this.client.publish({
+      destination: '/app/user.avatar',
       body: JSON.stringify(message)
     })
   }
@@ -274,6 +331,11 @@ class WebSocketService {
     // 处理通知消息
     if (message.type === 'NOTIFICATION') {
       this.handleNotificationMessage(message.content)
+    }
+    
+    // 处理聊天消息的全局通知
+    if (message.type === 'CHAT_MESSAGE') {
+      this.handleChatMessageNotification(message)
     }
     
     // 调用注册的消息处理器
@@ -298,42 +360,68 @@ class WebSocketService {
   }
 
   /**
+   * 处理聊天消息通知
+   */
+  async handleChatMessageNotification(message) {
+    try {
+      // 只对接收到的消息（非自己发送的）显示通知
+      if (this.currentUser && message.senderId !== this.currentUser.id) {
+        // 只在通知权限已授权的情况下显示系统通知
+        if (notificationUtil.getPermissionStatus() === 'granted') {
+          await notificationUtil.showNotification({
+            title: '新消息',
+            message: `${message.senderName}: ${message.content}`,
+            priority: 'normal',
+            tag: `chat-${message.senderId}-${Date.now()}`
+          })
+        }
+      }
+    } catch (error) {
+      // 静默处理错误，避免控制台报错
+      console.log('通知显示失败，可能是权限问题')
+    }
+  }
+
+  /**
    * 处理通知消息
    */
   async handleNotificationMessage(notification) {
     console.log('收到通知:', notification)
     
     try {
-      // 只显示一次系统通知，根据通知类型显示不同的标题
-      let notificationTitle = notification.title
-      switch (notification.type) {
-        case 'system':
-          notificationTitle = `系统通知: ${notification.title}`
-          break
-        case 'project':
-          notificationTitle = `项目通知: ${notification.title}`
-          break
-        case 'personal':
-          notificationTitle = `个人通知: ${notification.title}`
-          break
-      }
-
-      // 只显示一次通知
-      await notificationUtil.showNotification({
-        title: notificationTitle,
-        message: notification.content,
-        priority: notification.priority,
-        tag: `${notification.type}-${notification.id || Date.now()}` // 使用 tag 防止重复通知
-      })
-
       // 触发通知接收事件供页面组件处理业务逻辑
       const event = new CustomEvent('notificationReceived', {
         detail: notification
       })
       window.dispatchEvent(event)
+      
+      // 只在通知权限已授权的情况下显示系统通知
+      if (notificationUtil.getPermissionStatus() === 'granted') {
+        // 只显示一次系统通知，根据通知类型显示不同的标题
+        let notificationTitle = notification.title
+        switch (notification.type) {
+          case 'system':
+            notificationTitle = `系统通知: ${notification.title}`
+            break
+          case 'project':
+            notificationTitle = `项目通知: ${notification.title}`
+            break
+          case 'personal':
+            notificationTitle = `个人通知: ${notification.title}`
+            break
+        }
 
+        // 只显示一次通知
+        await notificationUtil.showNotification({
+          title: notificationTitle,
+          message: notification.content,
+          priority: notification.priority,
+          tag: `${notification.type}-${notification.id || Date.now()}` // 使用 tag 防止重复通知
+        })
+      }
     } catch (error) {
-      console.error('处理通知消息失败:', error)
+      // 静默处理错误，避免控制台报错
+      console.log('通知处理失败，可能是权限问题')
     }
   }
 
@@ -397,6 +485,97 @@ class WebSocketService {
    */
   getCurrentProject() {
     return this.currentProject
+  }
+
+  /**
+   * 请求当前在线用户状态
+   */
+  requestOnlineUserStatus(force = false) {
+    if (!this.client || !this.connected || !this.currentUser) {
+      console.error('WebSocket未连接或用户信息缺失')
+      return
+    }
+
+    // 防抖：3秒内不重复请求，除非强制刷新
+    const now = Date.now()
+    if (!force && now - this.lastStatusRequest < 3000) {
+      console.log('状态请求过于频繁，已跳过')
+      return
+    }
+    this.lastStatusRequest = now
+
+    const message = {
+      type: 'USER_STATUS',
+      content: { action: 'request_all' },
+      senderId: this.currentUser.id,
+      senderName: this.currentUser.username,
+      timestamp: now
+    }
+
+    this.client.publish({
+      destination: '/app/user.status',
+      body: JSON.stringify(message)
+    })
+    
+    console.log('请求在线用户状态', force ? '(强制)' : '')
+  }
+
+  /**
+   * 启动状态心跳
+   */
+  startStatusHeartbeat() {
+    // 清理之前的定时器
+    this.stopStatusHeartbeat()
+    
+    // 每20秒发送一次在线状态
+    this.statusInterval = setInterval(() => {
+      if (this.connected && this.currentUser) {
+        this.sendUserStatus('online')
+      }
+    }, 20000)
+  }
+
+  /**
+   * 停止状态心跳
+   */
+  stopStatusHeartbeat() {
+    if (this.statusInterval) {
+      clearInterval(this.statusInterval)
+      this.statusInterval = null
+    }
+  }
+
+  /**
+   * 同步用户在线状态（用于路由切换等场景）
+   */
+  syncUserStatus() {
+    if (!this.client || !this.connected || !this.currentUser) {
+      console.error('WebSocket未连接或用户信息缺失')
+      return Promise.reject('WebSocket未连接')
+    }
+
+    return new Promise((resolve) => {
+      // 立即发送自己的在线状态
+      this.sendUserStatus('online')
+      
+      // 强制请求所有用户状态
+      this.requestOnlineUserStatus(true)
+      
+      // 触发本地状态更新事件
+      window.dispatchEvent(new CustomEvent('userStatusChange', {
+        detail: {
+          userId: this.currentUser.id,
+          status: 'online',
+          immediate: true,
+          source: 'sync'
+        }
+      }))
+      
+      // 延迟确保状态同步完成
+      setTimeout(() => {
+        resolve()
+      }, 500)
+    })
   }
 }
 

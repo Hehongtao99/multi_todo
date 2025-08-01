@@ -6,6 +6,8 @@ import UserManagement from '../views/UserManagement.vue'
 import ProjectManagement from '../views/ProjectManagement.vue'
 import ProjectDetail from '../views/ProjectDetail.vue'
 import TodoManagement from '../views/TodoManagement.vue'
+import Chat from '../views/Chat.vue'
+import Profile from '../views/Profile.vue'
 
 const routes = [
   {
@@ -46,6 +48,16 @@ const routes = [
         path: 'todos',
         name: 'TodoManagement',
         component: TodoManagement
+      },
+      {
+        path: 'chat',
+        name: 'Chat',
+        component: Chat
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: Profile
       }
     ]
   }

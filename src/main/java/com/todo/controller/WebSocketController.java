@@ -57,4 +57,12 @@ public class WebSocketController {
     public void chatMessage(@Payload WebSocketMessageDto message) {
         webSocketService.handleChatMessage(message);
     }
+    
+    /**
+     * 处理用户头像更新
+     */
+    @MessageMapping("/user.avatar")
+    public void userAvatarUpdate(@Payload WebSocketMessageDto message) {
+        webSocketService.handleUserAvatarUpdate(message);
+    }
 } 

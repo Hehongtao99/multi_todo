@@ -68,6 +68,14 @@ export default {
           ElMessage.success('登录成功')
           // 保存用户信息到本地存储
           localStorage.setItem('userInfo', JSON.stringify(response.data.data))
+          
+          // 触发storage事件，让App.vue知道用户已登录
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'userInfo',
+            newValue: JSON.stringify(response.data.data),
+            storageArea: localStorage
+          }))
+          
           router.push('/dashboard')
         } else {
           ElMessage.error(response.data.message)

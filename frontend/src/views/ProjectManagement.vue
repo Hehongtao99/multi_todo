@@ -202,6 +202,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getProjectList, createProject, assignProject } from '../api/project'
 import { getUserList } from '../api/user'
+import webSocketService from '../api/websocket.js'
 
 export default {
   name: 'ProjectManagement',

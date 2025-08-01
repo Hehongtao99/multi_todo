@@ -26,6 +26,14 @@
             <el-icon><UserFilled /></el-icon>
             <span>用户管理</span>
           </el-menu-item>
+          <el-menu-item index="chat">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>实时聊天</span>
+          </el-menu-item>
+          <el-menu-item index="profile">
+            <el-icon><User /></el-icon>
+            <span>个人信息</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 
@@ -37,6 +45,9 @@
             <span class="welcome-text">欢迎回来，{{ userInfo.username }}！</span>
           </div>
           <div class="header-right">
+            <el-button v-if="showNotificationButton" @click="requestNotificationPermission" type="info" size="small" plain style="margin-right: 15px;">
+              开启消息通知
+            </el-button>
             <el-dropdown @command="handleUserCommand">
               <span class="user-dropdown">
                 <el-icon><User /></el-icon>
@@ -45,6 +56,7 @@
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item command="profile">个人信息</el-dropdown-item>
                   <el-dropdown-item command="logout">退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -88,6 +100,15 @@
                       <p>管理系统用户和权限</p>
                     </el-card>
                   </el-col>
+                  <el-col :span="12">
+                    <el-card class="feature-card" @click="handleMenuSelect('chat')">
+                      <div class="feature-icon">
+                        <el-icon><ChatDotRound /></el-icon>
+                      </div>
+                      <h4>实时聊天</h4>
+                      <p>{{ userInfo.auth === 'admin' ? '与普通用户进行实时聊天' : '与管理员进行实时聊天' }}</p>
+                    </el-card>
+                  </el-col>
                 </el-row>
               </div>
             </el-card>
@@ -102,6 +123,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ChatDotRound } from '@element-plus/icons-vue'
+import notificationUtil from '../utils/notification.js'
 
 export default {
   name: 'Dashboard',
@@ -110,6 +133,7 @@ export default {
     const route = useRoute()
     const userInfo = ref({})
     const activeMenu = ref('')
+    const showNotificationButton = ref(false)
 
     // 是否显示子路由内容
     const currentView = computed(() => {
@@ -125,6 +149,9 @@ export default {
         // 如果没有用户信息，跳转到登录页
         router.push('/login')
       }
+      
+      // 检查通知权限状态
+      checkNotificationPermission()
 
       // 设置默认激活菜单
       if (route.path.includes('/projects')) {
@@ -133,14 +160,26 @@ export default {
         activeMenu.value = 'users'
       } else if (route.path.includes('/todos')) {
         activeMenu.value = 'todos'
+      } else if (route.path.includes('/chat')) {
+        activeMenu.value = 'chat'
       }
     })
 
     const handleUserCommand = (command) => {
       if (command === 'logout') {
+        // 触发storage事件，让App.vue知道用户已退出
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'userInfo',
+          oldValue: localStorage.getItem('userInfo'),
+          newValue: null,
+          storageArea: localStorage
+        }))
+        
         localStorage.removeItem('userInfo')
         ElMessage.success('退出成功')
         router.push('/login')
+      } else if (command === 'profile') {
+        router.push('/dashboard/profile')
       }
     }
 
@@ -156,17 +195,49 @@ export default {
         case 'todos':
           router.push('/dashboard/todos')
           break
+        case 'chat':
+          router.push('/dashboard/chat')
+          break
+        case 'profile':
+          router.push('/dashboard/profile')
+          break
         default:
           break
       }
     }
 
+    // 检查通知权限状态
+    const checkNotificationPermission = () => {
+      const permissionStatus = notificationUtil.getPermissionStatus()
+      // 只有当权限状态为default（未决定）时才显示按钮
+      showNotificationButton.value = permissionStatus === 'default'
+    }
+    
+    // 请求通知权限
+    const requestNotificationPermission = async () => {
+      try {
+        const granted = await notificationUtil.requestPermission()
+        if (granted) {
+          ElMessage.success('通知权限已开启')
+          showNotificationButton.value = false
+        } else {
+          ElMessage.warning('您拒绝了通知权限，将无法收到消息提醒')
+        }
+      } catch (error) {
+        console.error('请求通知权限失败:', error)
+        ElMessage.error('请求通知权限失败')
+      }
+    }
+    
     return {
       userInfo,
       activeMenu,
       currentView,
       handleUserCommand,
-      handleMenuSelect
+      handleMenuSelect,
+      ChatDotRound,
+      showNotificationButton,
+      requestNotificationPermission
     }
   }
 }

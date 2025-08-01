@@ -34,6 +34,11 @@ public interface WebSocketService {
     void handleChatMessage(WebSocketMessageDto message);
     
     /**
+     * 处理用户头像更新
+     */
+    void handleUserAvatarUpdate(WebSocketMessageDto message);
+    
+    /**
      * 向特定项目发送消息
      */
     void sendToProject(Long projectId, WebSocketMessageDto message);
